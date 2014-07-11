@@ -21,8 +21,6 @@ bool Problem_Input::CheckComment(std::vector<std::string> inputline) {
 	if ( inputline.empty() ) return true;
 	return false;
 }
-
-
 void Problem_Input::ProcessInput(std::ifstream& input, std::ofstream& fout)
 {
 	// Build and initialize mesh parameters
@@ -142,7 +140,6 @@ void Problem_Input::ProcessInput(std::ifstream& input, std::ofstream& fout)
 	CheckProblemInput();
 	//Output(fout);
 }
-
 void Problem_Input::GetPartitionParameters()
 {
 	// Default is KBA (Hybrid for num_SML>1) with overloading of 1
@@ -245,35 +242,28 @@ void Problem_Input::DefineProblem()
 	sp_disc = 1;
 	sched_type = 1;
 	// KBA if only 1 SML, Hybrid if more than 1 SML
-	if (num_SML == 1)
-	{
-		num_cellsets[0] = (int)sqrt(num_SML);
-		num_cellsets[1] = (int)sqrt(num_SML);
-		num_cellsets[2] = 1;
-		overload[0] = 1;
-		overload[1] = 1;
-		overload[2] = 1;
-	}
-	else
-	{
-		num_cellsets[0] = (int)sqrt(num_SML / 2);
-		num_cellsets[1] = (int)sqrt(num_SML / 2);
-		num_cellsets[2] = 2;
-		overload[0] = 1;
-		overload[1] = 1;
-		overload[2] = 1;
-	}
+	// Factor SML Count will return the optimal 
+	// X Y SML layout (as close to sqrt as possible)
+	std::vector<int> SML_Counts(3, 0);
+	SML_Counts = FactorSMLCount();
+
+	num_cellsets[0] = SML_Counts[0];
+	num_cellsets[1] = SML_Counts[1];
+	num_cellsets[2] = SML_Counts[2];
+	overload[0] = 1;
+	overload[1] = 1;
+	overload[2] = 1;
 
 	// Tiny Problem
 	if (problem_size == 1)
 	{
 		// Quadrature Data
-		num_polar = 2;
+		num_polar = 4;
 		num_azim = 4;
 		ang_agg_type = 3; // Octant
 
 		// Energy Data
-		num_groups = 4;
+		num_groups = 10;
 		num_groupsets = 1;
 
 		// Spatial Data
@@ -292,7 +282,7 @@ void Problem_Input::DefineProblem()
 		ang_agg_type = 3; // Octant
 
 		// Energy Data
-		num_groups = 50;
+		num_groups = 20;
 		num_groupsets = 1;
 
 		// Spatial Data
@@ -385,4 +375,53 @@ void Problem_Input::CheckProblemInput()
 
 
 
+}
+std::vector<int> Problem_Input::FactorSMLCount()
+{
+	std::vector<int> SMLCounts(3,0);
+
+	// Check if the number of SMLs are greater than 2
+	if (num_SML >= 2)
+	{
+		if (num_SML & 2 != 0)
+		{
+			std::cout << "Cannot handle odd SML Counts" << std::endl;
+			MPI_Abort(MPI_COMM_WORLD, 1);
+		}
+		// if num_SML > 2 and even, Pz = 2
+		SMLCounts[2] = 2;
+	}
+	else
+	{
+		SMLCounts[0] = 1;
+		SMLCounts[1] = 1;
+		SMLCounts[2] = 1;
+		return SMLCounts;
+	}
+
+	// If the sqrt of the remaining SML is an integer
+	// Px = Py = sqrt(num_SML/2)
+
+	if (fmod(sqrt(num_SML / 2), 1) == 0)
+	{
+		SMLCounts[0] = sqrt(num_SML / 2);
+		SMLCounts[1] = sqrt(num_SML / 2);
+		return SMLCounts;
+	}
+	// else find the biggest factor (closest to the sqrt root)
+	// Px will be the larger factor
+	else
+	{
+		int root = (int)sqrt(num_SML / 2);
+		for (int i = root; i >= 1; i--)
+		{
+			// While i divides n, Px = num_SML/2/i, Py = i
+			if ((num_SML/2)%i == 0)
+			{
+				SMLCounts[0] = num_SML / (2 * i);
+				SMLCounts[1] = i;
+				return SMLCounts;
+			}
+		}
+	}
 }

@@ -83,6 +83,8 @@ private:
 	void CheckProblemInput();
 	void GetPartitionParameters();
 
+	std::vector<int> FactorSMLCount();
+
 };
 
 #endif
