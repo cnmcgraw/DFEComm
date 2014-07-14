@@ -50,6 +50,7 @@ void Quadrature::BuildQuadrature(Problem_Input* input)
     if(input->ang_agg_type == 1)
 	{
 		num_angleset = num_angles;
+		angle_per_angleset = 1;
 		Anglesets.resize(num_angleset);
 		for (int i = 0; i < num_angles; i++)
 		{
@@ -90,12 +91,17 @@ void Quadrature::BuildQuadrature(Problem_Input* input)
 			Anglesets[2 * i+1].octant = GetOctant(Omegas[(2 * i + 2)*angle_per_angleset - 1]);
 			Anglesets[2 * i + 1].angle_per_angleset = angle_per_angleset;
 
+			Anglesets[2 * i+1].AngleIDs.resize(angle_per_angleset);
+			Anglesets[2 * i+1].Omegas.resize(angle_per_angleset);
+			Anglesets[2 * i+1].Weights.resize(angle_per_angleset);
+
 			for (int j = num_polar / 2; j < num_polar; j++)
 			{
-				Anglesets[2 * i].AngleIDs[j] = i*num_polar + j;
-				Anglesets[2 * i].Omegas[j] = Omegas[i*num_polar + j];
-				Anglesets[2 * i].Weights[j] = Weights[i*num_polar + j];
+				Anglesets[2 * i].AngleIDs[j  -num_polar / 2] = i*num_polar + j;
+				Anglesets[2 * i].Omegas[j - num_polar / 2] = Omegas[i*num_polar + j];
+				Anglesets[2 * i].Weights[j - num_polar / 2] = Weights[i*num_polar + j];
 			}
+			//std::cout << "Angleset: " << 2 * i << " " << 2 * i + 1 << std::endl;
 		}
 	}
 	//  Octant Aggregation

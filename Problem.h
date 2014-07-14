@@ -51,7 +51,7 @@ class Problem
 {
 public:
 	Problem();
-	~Problem();
+	virtual ~Problem();
 
 public:
 	int rank;
@@ -105,6 +105,8 @@ private:
 	int GetCell(int, int, int, int, int, int, int);
 
 	void GE_no_pivoting(std::vector<std::vector< double > >&, std::vector<double>&, int);
+
+	unsigned int GetTarget(int, int, int);
 
 
 };

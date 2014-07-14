@@ -282,7 +282,7 @@ void Problem_Input::DefineProblem()
 		ang_agg_type = 3; // Octant
 
 		// Energy Data
-		num_groups = 20;
+		num_groups = 50;
 		num_groupsets = 1;
 
 		// Spatial Data

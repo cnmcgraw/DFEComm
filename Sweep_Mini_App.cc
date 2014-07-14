@@ -76,9 +76,25 @@ int main(int argc, char **argv)
   problem->BuildProblem(input_data);
 
   // Perform the sweep
+  int rank;
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  if (rank == 0){ std::cout << "     SWEEP 1" << std::endl; }
   problem->Sweep();
+  MPI_Barrier(MPI_COMM_WORLD);
+  if (rank == 0){ std::cout << "     SWEEP 2" << std::endl; }
+  problem->Sweep();
+  MPI_Barrier(MPI_COMM_WORLD);
+  if (rank == 0){ std::cout << "     SWEEP 3" << std::endl; }
+  problem->Sweep();
+  MPI_Barrier(MPI_COMM_WORLD);
+
+
   
 
   MPI_Finalize();
+
+  delete input_data;
+  delete problem;
+
   return 0;
 }

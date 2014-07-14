@@ -56,7 +56,6 @@ void Problem::BuildProblem(Problem_Input* input)
 	// Build the subdomain 
 	subdomain.BuildSubdomain(rank, this);
 
-
 	// Build the task vector
 	int num_tasks = 0;
 	// The size is # Anglesets * # Groupsets * # Cellsets on this SML
@@ -127,6 +126,7 @@ void Problem::Sweep()
 	int task = 0;
 	for (; it != it_end; it++, task++)
 	{
+		int target = 0;
 		start_task = std::clock();
 		//start_receive = clock();
 		//duration_solve = 0;
@@ -143,6 +143,8 @@ void Problem::Sweep()
 		int cells_z = subdomain.CellSets[(*it).cellset_id_loc].cells_z;
 
 		int angle_per_angleset = quad.Anglesets[(*it).angleset_id].angle_per_angleset;
+
+		//if (rank == 0){ std::cout << "AS_ID, angle_per_angleset: " << (*it).angleset_id << " " << angle_per_angleset << std::endl; }
 
 		int octant = quad.Anglesets[(*it).angleset_id].octant;
 
@@ -184,31 +186,31 @@ void Problem::Sweep()
 			// we continue with the sweep
 			else
 			{
+				target = GetTarget((*it).angleset_id, (*it).groupset_id, (*it).cellset_id);
 				if (incoming[f] == 0 || incoming[f] == 1)
 				{
 					int size = cells_y*cells_z*group_per_groupset*angle_per_angleset * 4;
 					MPI_Status status;
 					// buffer,size of buffer, data type, target, tag (face), comm
-					MPI_Recv(&subdomain.X_buffer[0], size, MPI_DOUBLE, neighbor.SML, incoming[f], MPI_COMM_WORLD, &status);
+					MPI_Recv(&subdomain.X_buffer[0], size, MPI_DOUBLE, neighbor.SML, target, MPI_COMM_WORLD, &status);
 				}
 				if (incoming[f] == 2 || incoming[f] == 3)
 				{
 					int size = cells_x*cells_z*group_per_groupset*angle_per_angleset * 4;
 					MPI_Status status;
 					// buffer,size of buffer, data type, target, tag (face), comm
-					MPI_Recv(&subdomain.Y_buffer[0], size, MPI_DOUBLE, neighbor.SML, incoming[f], MPI_COMM_WORLD, &status);
+					MPI_Recv(&subdomain.Y_buffer[0], size, MPI_DOUBLE, neighbor.SML, target, MPI_COMM_WORLD, &status);
 				}
 				if (incoming[f] == 4 || incoming[f] == 5)
 				{
 					int size = cells_x*cells_y*group_per_groupset*angle_per_angleset * 4;
 					MPI_Status status;
 					// buffer,size of buffer, data type, target, tag (face), comm
-					MPI_Recv(&subdomain.Z_buffer[0], size, MPI_DOUBLE, neighbor.SML, incoming[f], MPI_COMM_WORLD, &status);
+					MPI_Recv(&subdomain.Z_buffer[0], size, MPI_DOUBLE, neighbor.SML, target, MPI_COMM_WORLD, &status);
 				}
 			}
 		}
 		//duration_receive = (std::clock() - start_task) / (double)CLOCKS_PER_SEC;
-
 		// We march through the cells first in x, then y, then z
 		// The order (left to right or right to left) depends on what 
 		// octant the angleset is in so we call GetCell to figure out where we are
@@ -239,6 +241,7 @@ void Problem::Sweep()
 						//start_ang = clock();
 						// Get the direction of the angle
 						Direction omega = quad.Anglesets[(*it).angleset_id].Omegas[m];
+
 						// Add in the gradient matrix to the A matrix
 						for (int a = 0; a < 4; a++)
 						{
@@ -332,8 +335,7 @@ void Problem::Sweep()
 		} // cells in z
 		
 		//start_send = clock();
-		int target = 0;
-		
+
 		for (int f = 0; f < 3; f++)
 		{
 			// figure out target face
@@ -344,32 +346,36 @@ void Problem::Sweep()
 			// Get the neighbors for each face
 			Neighbor neighbor = subdomain.CellSets[(*it).cellset_id_loc].neighbors[outgoing[f]];
 
-			if (neighbor.SML < 0)
+			if (neighbor.id < 0)
 			{
 				// store the buffer into the boundary information
 			}
 			// send an mpi message to neighbor.SML
-			if (outgoing[f] == 0 || outgoing[f] == 1)
+			else
 			{
-				int size = cells_y*cells_z*group_per_groupset*angle_per_angleset * 4;
-				MPI_Request request;
-				// buffer,size of buffer, data type, target, tag (face), comm
-				MPI_Isend(&subdomain.X_buffer[0], size, MPI_DOUBLE, neighbor.SML, target, MPI_COMM_WORLD, &request);
-			}
-			if (outgoing[f] == 2 || outgoing[f] == 3)
-			{
-				int size = cells_x*cells_z*group_per_groupset*angle_per_angleset * 4;
-				MPI_Request request;
-				// buffer,size of buffer, data type, target, tag (face), comm
-				MPI_Isend(&subdomain.Y_buffer[0], size, MPI_DOUBLE, neighbor.SML, target, MPI_COMM_WORLD, &request);
-			}
-			if (outgoing[f] == 4 || outgoing[f] == 5)
-			{
-				int size = cells_x*cells_y*group_per_groupset*angle_per_angleset * 4;
-				MPI_Request request;
-				// buffer,size of buffer, data type, target, tag (face), comm
-				MPI_Isend(&subdomain.Z_buffer[0], size, MPI_DOUBLE, neighbor.SML, target, MPI_COMM_WORLD, &request);
+				target = GetTarget((*it).angleset_id, (*it).groupset_id, neighbor.id);
+				if (outgoing[f] == 0 || outgoing[f] == 1)
+				{
+					int size = cells_y*cells_z*group_per_groupset*angle_per_angleset * 4;
+					MPI_Request request;
+					// buffer,size of buffer, data type, target, tag (face), comm
+					MPI_Isend(&subdomain.X_buffer[0], size, MPI_DOUBLE, neighbor.SML, target, MPI_COMM_WORLD, &request);
+				}
+				if (outgoing[f] == 2 || outgoing[f] == 3)
+				{
+					int size = cells_x*cells_z*group_per_groupset*angle_per_angleset * 4;
+					MPI_Request request;
+					// buffer,size of buffer, data type, target, tag (face), comm
+					MPI_Isend(&subdomain.Y_buffer[0], size, MPI_DOUBLE, neighbor.SML, target, MPI_COMM_WORLD, &request);
+				}
+				if (outgoing[f] == 4 || outgoing[f] == 5)
+				{
+					int size = cells_x*cells_y*group_per_groupset*angle_per_angleset * 4;
+					MPI_Request request;
+					// buffer,size of buffer, data type, target, tag (face), comm
+					MPI_Isend(&subdomain.Z_buffer[0], size, MPI_DOUBLE, neighbor.SML, target, MPI_COMM_WORLD, &request);
 
+				}
 			}
 
 		}
@@ -483,4 +489,19 @@ void Problem::GE_no_pivoting(std::vector<std::vector< double > >& A, std::vector
 			bi -= ai[j] * b[j];
 		b[i] = bi / ai[i];
 	}
+}
+
+unsigned int Problem::GetTarget(int as, int gs, int cs)
+{
+	// The target will be an integer with 10 digits
+	// The first 4 digits will be the angleset, the second 3 will be
+	// the groupset, and the final 3 digits will be the neighbor cellset
+	// This assumes the total number of anglesets is less than 10,000, 
+	// and the number of groupsets and cellsets are both less than 1,000
+
+	unsigned int target;
+	target = cs + 1000 * gs + pow(1000,2) * as + pow(1000,3);
+	//target = pow(10000, 3);
+	//std::cout << "CS, GS, AS, target: " << cs << " " << gs << " " << as << " " << target << std::endl;
+	return target;
 }
