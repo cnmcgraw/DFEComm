@@ -339,16 +339,27 @@ void Problem::Sweep()
 		for (int f = 0; f < 3; f++)
 		{
 			// figure out target face
-			if (outgoing[f] == 0 || outgoing[f] == 2 || outgoing[f] == 4)
+			/*if (outgoing[f] == 0 || outgoing[f] == 2 || outgoing[f] == 4)
 				target = outgoing[f] + 1;
 			else
-				target = outgoing[f] - 1;
+				target = outgoing[f] - 1;*/
 			// Get the neighbors for each face
 			Neighbor neighbor = subdomain.CellSets[(*it).cellset_id_loc].neighbors[outgoing[f]];
 
 			if (neighbor.id < 0)
 			{
-				// store the buffer into the boundary information
+				if (outgoing[f] == 0 || outgoing[f] == 1)
+				{
+					subdomain.CellSets[(*it).cellset_id_loc].SetBoundaryFlux(outgoing[f], (*it).angleset_id, (*it).groupset_id, subdomain.X_buffer);
+				}
+				if (outgoing[f] == 2 || outgoing[f] == 3)
+				{
+					subdomain.CellSets[(*it).cellset_id_loc].SetBoundaryFlux(outgoing[f], (*it).angleset_id, (*it).groupset_id, subdomain.Y_buffer);
+				}
+				if (outgoing[f] == 4 || outgoing[f] == 5)
+				{
+					subdomain.CellSets[(*it).cellset_id_loc].SetBoundaryFlux(outgoing[f], (*it).angleset_id, (*it).groupset_id, subdomain.Z_buffer);
+				}
 			}
 			// send an mpi message to neighbor.SML
 			else
@@ -360,6 +371,7 @@ void Problem::Sweep()
 					MPI_Request request;
 					// buffer,size of buffer, data type, target, tag (face), comm
 					MPI_Isend(&subdomain.X_buffer[0], size, MPI_DOUBLE, neighbor.SML, target, MPI_COMM_WORLD, &request);
+					//MPI_Wait(&request, &status);
 				}
 				if (outgoing[f] == 2 || outgoing[f] == 3)
 				{
@@ -367,6 +379,7 @@ void Problem::Sweep()
 					MPI_Request request;
 					// buffer,size of buffer, data type, target, tag (face), comm
 					MPI_Isend(&subdomain.Y_buffer[0], size, MPI_DOUBLE, neighbor.SML, target, MPI_COMM_WORLD, &request);
+					//MPI_Wait(&request, &status);
 				}
 				if (outgoing[f] == 4 || outgoing[f] == 5)
 				{
@@ -374,6 +387,7 @@ void Problem::Sweep()
 					MPI_Request request;
 					// buffer,size of buffer, data type, target, tag (face), comm
 					MPI_Isend(&subdomain.Z_buffer[0], size, MPI_DOUBLE, neighbor.SML, target, MPI_COMM_WORLD, &request);
+					//MPI_Wait(&request, &status);
 
 				}
 			}

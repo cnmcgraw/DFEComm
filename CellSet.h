@@ -21,6 +21,7 @@ public:
 
 	int cells_per_cellset;
 	int cells_x, cells_y, cells_z;
+	int num_groupset, num_angleset;
 
 	// Vector of neighbor cellsets
 	std::vector<Neighbor> neighbors;
@@ -31,6 +32,7 @@ public:
 	// +1 indicates the positive (x, y, or z) boundary
 	// 0 indicates the cellset is in the interior
 	std::vector<int> globalboundary;
+	std::vector<std::vector<double> > BoundaryFlux;
 
 
 
@@ -57,6 +59,9 @@ public:
 
 	// This function returns the SML of each neighbor
 	void GetNeighborsSML(int, Problem*);
+
+	// This function sets the boundary buffer
+	void SetBoundaryFlux(int, int, int, std::vector<double>&);
 
 
 

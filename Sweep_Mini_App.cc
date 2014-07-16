@@ -2,6 +2,7 @@
 #include <fstream>
 #include <string>
 #include <stdlib.h>
+#include <ctime>
 #include "Problem_Input.h"
 #include "Problem.h"
 //#include <mpi.h>
@@ -74,22 +75,31 @@ int main(int argc, char **argv)
   // Build all the data structures, subdomain, quadrature, energy grid
   problem = new Problem();
   problem->BuildProblem(input_data);
-
+ 
   // Perform the sweep
   int rank;
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-  if (rank == 0){ std::cout << "     SWEEP 1" << std::endl; }
-  problem->Sweep();
-  MPI_Barrier(MPI_COMM_WORLD);
-  if (rank == 0){ std::cout << "     SWEEP 2" << std::endl; }
-  problem->Sweep();
-  MPI_Barrier(MPI_COMM_WORLD);
-  if (rank == 0){ std::cout << "     SWEEP 3" << std::endl; }
-  problem->Sweep();
-  MPI_Barrier(MPI_COMM_WORLD);
-
-
-  
+  std::clock_t start;
+  long double duration, total_duration;
+  total_duration = 0;
+  for (int i = 0; i < input_data->num_sweeps; i++)
+  {
+	  MPI_Barrier(MPI_COMM_WORLD);
+	  start = std::clock();
+	  if (rank == 0){ std::cout << "     SWEEP " << i + 1 << std::endl; }
+	  problem->Sweep();
+	  MPI_Barrier(MPI_COMM_WORLD);
+	  duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
+	  if (rank == 0){
+		  std::cout << "     Sweep " << i + 1 << " took " << duration << " seconds." << std::endl;
+		  std::cout << " " << std::endl;
+	  }
+	  total_duration += duration;
+  }
+  total_duration = total_duration / input_data->num_sweeps;
+  if (rank == 0){
+	  std::cout << "Average Sweep Time: " << total_duration << " seconds." << std::endl;
+  }
 
   MPI_Finalize();
 
