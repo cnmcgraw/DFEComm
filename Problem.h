@@ -91,6 +91,9 @@ public:
 	// This function performs the sweep
 	void Sweep();
 
+	// Zeroes out the phi vector before each sweep.
+	void ZeroPhi();
+
 private:
 	// Matrices to invert during the sweep
 	// Their inversion will be replaced with a wait() function

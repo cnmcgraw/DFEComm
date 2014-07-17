@@ -111,7 +111,7 @@ void Subdomain::SetBoundaryConditions(Problem* problem)
 		for (int i = 0; i < bc.size(); i++)
 		{
 			//bc[i] = 7. / 3.;
-			bc[i] = 0.5;
+			bc[i] = 2.0;
 		}
 	}
 
@@ -120,27 +120,33 @@ double Subdomain::GetBoundaryCondition(int Boundary)
 {
 	return bc[Boundary];
 }
-void Subdomain::Set_buffer(int cell_x, int cell_y, int cell_z, int group, int angle, int face, vector<double>& RHS)
+void Subdomain::AllocateSendBuffers(int num_tasks)
+{
+	X_Send_buffer.resize(cells_y*cells_z*group_per_groupset*angle_per_angleset * 4*num_tasks);
+	Y_Send_buffer.resize(cells_x*cells_z*group_per_groupset*angle_per_angleset * 4*num_tasks);
+	Z_Send_buffer.resize(cells_x*cells_y*group_per_groupset*angle_per_angleset * 4*num_tasks);
+}
+void Subdomain::Set_buffer(int cell_x, int cell_y, int cell_z, int group, int angle, int face, int task, vector<double>& RHS)
 {
 	if (face == 0 || face == 1)
 	{
 		for (int i = 0; i < 4; i++)
 		{
-			X_buffer[cell_y*cells_z*group_per_groupset*angle_per_angleset * 4 + cell_z*group_per_groupset*angle_per_angleset * 4 + group*angle_per_angleset * 4 + angle * 4 + i] = RHS[i];
+			X_Send_buffer[task*X_buffer.size() + cell_y*cells_z*group_per_groupset*angle_per_angleset * 4 + cell_z*group_per_groupset*angle_per_angleset * 4 + group*angle_per_angleset * 4 + angle * 4 + i] = RHS[i];
 		}
 	}
 	else if (face == 2 || face == 3)
 	{
 		for (int i = 0; i < 4; i++)
 		{
-			Y_buffer[cell_x*cells_z*group_per_groupset*angle_per_angleset * 4 + cell_z*group_per_groupset*angle_per_angleset * 4 + group*angle_per_angleset * 4 + angle * 4 + i] = RHS[i];
+			Y_Send_buffer[task*Y_buffer.size() + cell_x*cells_z*group_per_groupset*angle_per_angleset * 4 + cell_z*group_per_groupset*angle_per_angleset * 4 + group*angle_per_angleset * 4 + angle * 4 + i] = RHS[i];
 		}
 	}
 	else if (face == 4 || face == 5)
 	{
 		for (int i = 0; i < 4; i++)
 		{
-			Z_buffer[cell_x*cells_y*group_per_groupset*angle_per_angleset * 4 + cell_y*group_per_groupset*angle_per_angleset * 4 + group*angle_per_angleset * 4 + angle * 4 + i] = RHS[i];
+			Z_Send_buffer[task*Z_buffer.size() + cell_x*cells_y*group_per_groupset*angle_per_angleset * 4 + cell_y*group_per_groupset*angle_per_angleset * 4 + group*angle_per_angleset * 4 + angle * 4 + i] = RHS[i];
 		}
 	}
 }
@@ -168,7 +174,7 @@ void Subdomain::Get_buffer(int cell_x, int cell_y, int cell_z, int group, int an
 		}
 	}
 }
-void Subdomain::Set_buffer_from_bc(int face)
+void Subdomain::Get_buffer_from_bc(int face)
 {
 
 	if (face == 0 || face == 1)

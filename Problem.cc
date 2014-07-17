@@ -61,7 +61,6 @@ void Problem::BuildProblem(Problem_Input* input)
 	// The size is # Anglesets * # Groupsets * # Cellsets on this SML
 	num_tasks = quad.num_angleset*num_groupsets*subdomain.total_overload;
 	All_Tasks.resize(num_tasks);
-	//std::cout << "All_Tasks.size() = " << All_Tasks.size() << std::endl;
 	int task_num = 0;
 	int octant = -1;
 	for (int i = 0; i < subdomain.total_overload; i++)
@@ -87,6 +86,9 @@ void Problem::BuildProblem(Problem_Input* input)
 	// Now we order the All_Tasks vector by depth, then angleset, then groupset
 	std::sort(All_Tasks.begin(), All_Tasks.end(), by_depth());
 
+	// Allocate the Send Buffers
+	subdomain.AllocateSendBuffers(num_tasks);
+
 	// Pre-allocate the DFEM Matrices
 	A_tilde.resize(4, std::vector<double>(4, 0.0));
 	A.resize(4, std::vector<double>(4, 0.0));
@@ -102,7 +104,6 @@ void Problem::BuildProblem(Problem_Input* input)
 	source[0] = 1;
 
 }
-
 
 void Problem::Sweep()
 {
@@ -144,8 +145,6 @@ void Problem::Sweep()
 
 		int angle_per_angleset = quad.Anglesets[(*it).angleset_id].angle_per_angleset;
 
-		//if (rank == 0){ std::cout << "AS_ID, angle_per_angleset: " << (*it).angleset_id << " " << angle_per_angleset << std::endl; }
-
 		int octant = quad.Anglesets[(*it).angleset_id].octant;
 
 		// Loop through all faces and designate them incoming or outgoing:
@@ -169,8 +168,7 @@ void Problem::Sweep()
 		}
 
 		// check to see if task has all required incident information
-		// First we figure out which faces of the cellset are incoming:
-		// Loop over cellset faces
+		// Loop over incoming cellset faces
 		for (int f = 0; f < 3; f++)
 		{
 			// Get the neighbors for each face
@@ -179,7 +177,7 @@ void Problem::Sweep()
 			// Get buffers from boundary conditions or neighbor SMLs
 			if (neighbor.SML < 0 || neighbor.SML == rank)
 			{
-				subdomain.Set_buffer_from_bc(incoming[f]);
+				subdomain.Get_buffer_from_bc(incoming[f]);
 			}
 			// These are blocking recieves. Since we know the task order of the sweep
 			// We have the task wait until it has all its incident fluxes before
@@ -191,26 +189,27 @@ void Problem::Sweep()
 				{
 					int size = cells_y*cells_z*group_per_groupset*angle_per_angleset * 4;
 					MPI_Status status;
-					// buffer,size of buffer, data type, target, tag (face), comm
+					// buffer,size of buffer, data type, target, tag, comm
 					MPI_Recv(&subdomain.X_buffer[0], size, MPI_DOUBLE, neighbor.SML, target, MPI_COMM_WORLD, &status);
 				}
 				if (incoming[f] == 2 || incoming[f] == 3)
 				{
 					int size = cells_x*cells_z*group_per_groupset*angle_per_angleset * 4;
 					MPI_Status status;
-					// buffer,size of buffer, data type, target, tag (face), comm
+					// buffer,size of buffer, data type, target, tag, comm
 					MPI_Recv(&subdomain.Y_buffer[0], size, MPI_DOUBLE, neighbor.SML, target, MPI_COMM_WORLD, &status);
 				}
 				if (incoming[f] == 4 || incoming[f] == 5)
 				{
 					int size = cells_x*cells_y*group_per_groupset*angle_per_angleset * 4;
 					MPI_Status status;
-					// buffer,size of buffer, data type, target, tag (face), comm
+					// buffer,size of buffer, data type, target, tag, comm
 					MPI_Recv(&subdomain.Z_buffer[0], size, MPI_DOUBLE, neighbor.SML, target, MPI_COMM_WORLD, &status);
 				}
 			}
 		}
 		//duration_receive = (std::clock() - start_task) / (double)CLOCKS_PER_SEC;
+
 		// We march through the cells first in x, then y, then z
 		// The order (left to right or right to left) depends on what 
 		// octant the angleset is in so we call GetCell to figure out where we are
@@ -251,7 +250,8 @@ void Problem::Sweep()
 							}
 							RHS[a] = M[a] * source[a];
 						}
-						// Loop over the incoming faces in this cell
+						// Loop over the incoming faces in this cell and 
+						// add the surface matrix contribution
 						for (int f = 0; f < 3; f++)
 						{
 							for (int a = 0; a < 4; a++)
@@ -271,6 +271,8 @@ void Problem::Sweep()
 							for (int a = 0; a < 4; a++)
 								bg[a] = RHS[a];
 
+							
+
 							// Retrieve this cells sigma tot (this is in the group loop to simulate
 							// multi-group cross sections
 							double sigma_t = my_cell.GetSigmaTot();
@@ -280,7 +282,6 @@ void Problem::Sweep()
 							{
 								std::vector<double> temp(4, 0);
 								subdomain.Get_buffer(cell_ijk[0], cell_ijk[1], cell_ijk[2], g, m, incoming[f], temp);
-								//if (rank == 1){ std::cout << "line: " << __LINE__ << std::endl; }
 								for (int a = 0; a < 4; a++)
 								{
 									for (int b = 0; b < 4; b++)
@@ -300,6 +301,7 @@ void Problem::Sweep()
 								}
 							}
 							//duration_A += clock() - start_group;
+
 							// Solve A^-1*RHS and store it in RHS (4 = number of elements)
 							//start_solve = clock();
 							GE_no_pivoting(A, bg, 4);
@@ -308,12 +310,10 @@ void Problem::Sweep()
 							//start_phi = clock();
 							// Now we accumulate the fluxes into phi;
 							my_cell.phi[(*it).groupset_id*group_per_groupset + g] += bg[0] * quad.Anglesets[(*it).angleset_id].Weights[m];
-							//std::cout << bg[0] << " " << quad.Anglesets[(*it).angleset_id].Weights[m] << std::endl;
 
 							// Now we need to translate the cell average to the average on each 
 							// face before we push to the down stream neighbers
 							// This allows for direct data movement (no cell to cell mapping needed)
-							// Again we need to loop over faces and check for incoming/outgoing
 							double cell_average = RHS[0];
 							for (int f = 0; f < 3; f++)
 							{
@@ -321,8 +321,7 @@ void Problem::Sweep()
 
 								bg[0] = cell_average + facecenter.x*bg[1] + facecenter.y*bg[2] + facecenter.z*bg[3];
 								// Now store outgoing fluxes in the buffer arrays
-								// Outgoing x faces
-								subdomain.Set_buffer(cell_ijk[0], cell_ijk[1], cell_ijk[2], g, m, outgoing[f], bg);
+								subdomain.Set_buffer(cell_ijk[0], cell_ijk[1], cell_ijk[2], g, m, outgoing[f], task, bg);
 							}
 							//duration_phi += clock() - start_group;
 							//duration_group += std::clock() - start_group;
@@ -338,14 +337,10 @@ void Problem::Sweep()
 
 		for (int f = 0; f < 3; f++)
 		{
-			// figure out target face
-			/*if (outgoing[f] == 0 || outgoing[f] == 2 || outgoing[f] == 4)
-				target = outgoing[f] + 1;
-			else
-				target = outgoing[f] - 1;*/
 			// Get the neighbors for each face
 			Neighbor neighbor = subdomain.CellSets[(*it).cellset_id_loc].neighbors[outgoing[f]];
 
+			// If we are on a global boundary, store in a boundary buffer
 			if (neighbor.id < 0)
 			{
 				if (outgoing[f] == 0 || outgoing[f] == 1)
@@ -361,7 +356,7 @@ void Problem::Sweep()
 					subdomain.CellSets[(*it).cellset_id_loc].SetBoundaryFlux(outgoing[f], (*it).angleset_id, (*it).groupset_id, subdomain.Z_buffer);
 				}
 			}
-			// send an mpi message to neighbor.SML
+			// Otherwise, send an mpi message to neighbor.SML
 			else
 			{
 				target = GetTarget((*it).angleset_id, (*it).groupset_id, neighbor.id);
@@ -369,24 +364,24 @@ void Problem::Sweep()
 				{
 					int size = cells_y*cells_z*group_per_groupset*angle_per_angleset * 4;
 					MPI_Request request;
-					// buffer,size of buffer, data type, target, tag (face), comm
-					MPI_Isend(&subdomain.X_buffer[0], size, MPI_DOUBLE, neighbor.SML, target, MPI_COMM_WORLD, &request);
+					// buffer,size of buffer, data type, target, tag, comm
+					MPI_Isend(&subdomain.X_Send_buffer[task*subdomain.X_buffer.size()], size, MPI_DOUBLE, neighbor.SML, target, MPI_COMM_WORLD, &request);
 					//MPI_Wait(&request, &status);
 				}
 				if (outgoing[f] == 2 || outgoing[f] == 3)
 				{
 					int size = cells_x*cells_z*group_per_groupset*angle_per_angleset * 4;
 					MPI_Request request;
-					// buffer,size of buffer, data type, target, tag (face), comm
-					MPI_Isend(&subdomain.Y_buffer[0], size, MPI_DOUBLE, neighbor.SML, target, MPI_COMM_WORLD, &request);
+					// buffer,size of buffer, data type, target, tag, comm
+					MPI_Isend(&subdomain.Y_Send_buffer[task*subdomain.Y_buffer.size()], size, MPI_DOUBLE, neighbor.SML, target, MPI_COMM_WORLD, &request);
 					//MPI_Wait(&request, &status);
 				}
 				if (outgoing[f] == 4 || outgoing[f] == 5)
 				{
 					int size = cells_x*cells_y*group_per_groupset*angle_per_angleset * 4;
 					MPI_Request request;
-					// buffer,size of buffer, data type, target, tag (face), comm
-					MPI_Isend(&subdomain.Z_buffer[0], size, MPI_DOUBLE, neighbor.SML, target, MPI_COMM_WORLD, &request);
+					// buffer,size of buffer, data type, target, tag, comm
+					MPI_Isend(&subdomain.Z_Send_buffer[task*subdomain.Z_buffer.size()], size, MPI_DOUBLE, neighbor.SML, target, MPI_COMM_WORLD, &request);
 					//MPI_Wait(&request, &status);
 
 				}
@@ -426,26 +421,27 @@ void Problem::Sweep()
 	} // tasks
 	long double duration = (std::clock() - start) / (double) CLOCKS_PER_SEC;
 
-	//if (rank == 0){ 
-		std::cout << "  Rank: " << rank << " Sweep duration: " << duration << " seconds." << std::endl;
-	//}
+	std::cout << "  Rank: " << rank << " Sweep duration: " << duration << " seconds." << std::endl;
 	
-
-	//std::cout << "Phi[0] = " << std::endl;
-	//for (int c = 0; c < subdomain.total_overload; c++)
+	//if (rank == 0)
 	//{
-	//	// Number of cells in each direction in this cellset
-	//	int cells_x = subdomain.CellSets[c].cells_x;
-	//	int cells_y = subdomain.CellSets[c].cells_y;
-	//	int cells_z = subdomain.CellSets[c].cells_z;
-	//	for (int k = 0; k < cells_z; k++)
+
+	//	std::cout << "Phi[g = 0] = " << std::endl;
+	//	for (int c = 0; c < subdomain.total_overload; c++)
 	//	{
-	//		for (int j = 0; j < cells_y; j++)
+	//		// Number of cells in each direction in this cellset
+	//		int cells_x = subdomain.CellSets[c].cells_x;
+	//		int cells_y = subdomain.CellSets[c].cells_y;
+	//		int cells_z = subdomain.CellSets[c].cells_z;
+	//		for (int k = 0; k < cells_z; k++)
 	//		{
-	//			for (int i = 0; i < cells_x; i++)
+	//			for (int j = 0; j < cells_y; j++)
 	//			{
-	//				int cell_id = GetCell(i, j, k, cells_x, cells_y, cells_z, 0);
-	//				std::cout << cell_id << " " << subdomain.CellSets[c].Cells[cell_id].phi[0] << std::endl;
+	//				for (int i = 0; i < cells_x; i++)
+	//				{
+	//					int cell_id = GetCell(i, j, k, cells_x, cells_y, cells_z, 0);
+	//					std::cout << cell_id << " " << subdomain.CellSets[c].Cells[cell_id].phi[0] << std::endl;
+	//				}
 	//			}
 	//		}
 	//	}
@@ -518,4 +514,20 @@ unsigned int Problem::GetTarget(int as, int gs, int cs)
 	//target = pow(10000, 3);
 	//std::cout << "CS, GS, AS, target: " << cs << " " << gs << " " << as << " " << target << std::endl;
 	return target;
+}
+
+void Problem::ZeroPhi()
+{
+	// Loop through cellsets in this SMLs subdomain
+	for (int i = 0; i < subdomain.CellSets.size(); i++)
+	{
+		// Loop through cells in this cellset
+		for (int j = 0; j < subdomain.CellSets[i].Cells.size(); j++)
+		{
+			// Loop through groups
+			for (int k = 0; k < subdomain.CellSets[i].Cells[j].phi.size(); k++)
+				subdomain.CellSets[i].Cells[j].phi[k] = 0;
+		}
+
+	}
 }

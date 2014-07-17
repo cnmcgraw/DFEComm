@@ -82,9 +82,10 @@ int main(int argc, char **argv)
   std::clock_t start;
   long double duration, total_duration;
   total_duration = 0;
+  MPI_Barrier(MPI_COMM_WORLD);
   for (int i = 0; i < input_data->num_sweeps; i++)
-  {
-	  MPI_Barrier(MPI_COMM_WORLD);
+  {	  
+	  problem->ZeroPhi();
 	  start = std::clock();
 	  if (rank == 0){ std::cout << "     SWEEP " << i + 1 << std::endl; }
 	  problem->Sweep();

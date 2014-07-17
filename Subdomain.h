@@ -29,9 +29,9 @@ public:
 	// They are contiguous vectors of psi's in order of cells, 
 	// (in the dimensions not in the name)
 	// then groups, and finally angles
-	vector<double> X_buffer;
-	vector<double> Y_buffer;
-	vector<double> Z_buffer;
+	vector<double> X_buffer, X_Send_buffer;
+	vector<double> Y_buffer, Y_Send_buffer;
+	vector<double> Z_buffer, Z_Send_buffer;
 
 	// Build all the cellsets this SML owns
 	void BuildSubdomain(int, Problem*);
@@ -43,12 +43,15 @@ public:
 	void SetBoundaryConditions(Problem*);
 
 	// Function (given a boundary) returns the boundary condition
-	double GetBoundaryCondition( int);
+	double GetBoundaryCondition(int);
+
+	// Allocate the send buffers
+	void AllocateSendBuffers(int);
 
 	// Set functions for the X, Y, and Z buffers
-	void Set_buffer(int, int, int, int, int, int, vector<double>&);
+	void Set_buffer(int, int, int, int, int, int, int, vector<double>&);
 	void Get_buffer(int, int, int, int, int, int, vector<double>&);
-	void Set_buffer_from_bc(int);
+	void Get_buffer_from_bc(int);
 
 
 private:
