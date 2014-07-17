@@ -110,8 +110,8 @@ void Subdomain::SetBoundaryConditions(Problem* problem)
 		bc.resize(3);
 		for (int i = 0; i < bc.size(); i++)
 		{
-			//bc[i] = 7. / 3.;
-			bc[i] = 2.0;
+			bc[i] = 7. / 3.;
+			//bc[i] = 1.0;
 		}
 	}
 

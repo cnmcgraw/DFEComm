@@ -24,8 +24,8 @@ void Cell::BuildCell(int Local_ID, int CS_ID, Problem* problem)
 	delta_z = 4.0/problem->z_planes;
 
 	// Set cross section and source
-	sigma_t = 1.0;
-	source = 2.0;
+	sigma_t = 3.0;
+	source = 7.0;
 
 	// Get the face normals and centers
 	GetFaceNormals();

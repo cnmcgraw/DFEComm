@@ -129,7 +129,7 @@ void Problem::Sweep()
 	{
 		int target = 0;
 		start_task = std::clock();
-		//start_receive = clock();
+		//duration_receive = 0;
 		//duration_solve = 0;
 		//duration_cell = 0;
 		//duration_ang = 0;
@@ -204,7 +204,10 @@ void Problem::Sweep()
 					int size = cells_x*cells_y*group_per_groupset*angle_per_angleset * 4;
 					MPI_Status status;
 					// buffer,size of buffer, data type, target, tag, comm
+					//start_receive = clock();
 					MPI_Recv(&subdomain.Z_buffer[0], size, MPI_DOUBLE, neighbor.SML, target, MPI_COMM_WORLD, &status);
+					//duration_receive = (std::clock() - start_receive) / (double)CLOCKS_PER_SEC;
+
 				}
 			}
 		}
@@ -314,7 +317,7 @@ void Problem::Sweep()
 							// Now we need to translate the cell average to the average on each 
 							// face before we push to the down stream neighbers
 							// This allows for direct data movement (no cell to cell mapping needed)
-							double cell_average = RHS[0];
+							double cell_average = bg[0];
 							for (int f = 0; f < 3; f++)
 							{
 								Direction facecenter = my_cell.facecenters[outgoing[f]];
