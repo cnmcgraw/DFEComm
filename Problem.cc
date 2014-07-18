@@ -118,6 +118,9 @@ void Problem::Sweep()
 
 	// PreAllocated incoming and outgoing face vectors;
 	std::vector<int> incoming(3,0), outgoing(3,0);
+	std::vector<int> cell_ijk(3, 0);
+	std::vector<double> temp_solve(4, 0);
+	Neighbor neighbor;
 
 	
 //	Loop through task list
@@ -125,9 +128,10 @@ void Problem::Sweep()
 	std::vector<task>::iterator it = All_Tasks.begin();
 	std::vector<task>::iterator it_end = All_Tasks.end();
 	int task = 0;
+	int target;
 	for (; it != it_end; it++, task++)
 	{
-		int target = 0;
+		target = 0;
 		start_task = std::clock();
 		//duration_receive = 0;
 		//duration_solve = 0;
@@ -153,7 +157,7 @@ void Problem::Sweep()
 		for (int f = 0; f < 6; f++)
 		{
 			// Get the neighbors for each face
-			Neighbor neighbor = subdomain.CellSets[(*it).cellset_id_loc].neighbors[f];
+			neighbor = subdomain.CellSets[(*it).cellset_id_loc].neighbors[f];
 			// Again check for incoming and get the buffer matrices from faces
 			if (dot((*it).omega, neighbor.direction) < 0)
 			{
@@ -172,7 +176,7 @@ void Problem::Sweep()
 		for (int f = 0; f < 3; f++)
 		{
 			// Get the neighbors for each face
-			Neighbor neighbor = subdomain.CellSets[(*it).cellset_id_loc].neighbors[incoming[f]];
+			neighbor = subdomain.CellSets[(*it).cellset_id_loc].neighbors[incoming[f]];
 
 			// Get buffers from boundary conditions or neighbor SMLs
 			if (neighbor.SML < 0 || neighbor.SML == rank)
@@ -225,9 +229,7 @@ void Problem::Sweep()
 				{
 					//start_cell = clock();
 					int cell_id = GetCell(i, j, k, cells_x, cells_y, cells_z, octant);
-
 					Cell &my_cell = subdomain.CellSets[(*it).cellset_id_loc].Cells[cell_id];
-					std::vector<int> cell_ijk(3, 0);
 					my_cell.GetCellijk(cell_id, cells_x, cells_y, cells_z, cell_ijk);
 
 					// Get the cell's DFEM Matrices for building the A matrix
@@ -242,7 +244,7 @@ void Problem::Sweep()
 					{
 						//start_ang = clock();
 						// Get the direction of the angle
-						Direction omega = quad.Anglesets[(*it).angleset_id].Omegas[m];
+						omega = quad.Anglesets[(*it).angleset_id].Omegas[m];
 
 						// Add in the gradient matrix to the A matrix
 						for (int a = 0; a < 4; a++)
@@ -278,18 +280,17 @@ void Problem::Sweep()
 
 							// Retrieve this cells sigma tot (this is in the group loop to simulate
 							// multi-group cross sections
-							double sigma_t = my_cell.GetSigmaTot();
+							sigma_t = my_cell.GetSigmaTot();
 							// Need to get incoming fluxes for the RHS
 							//start_incflux = clock();
 							for (int f = 0; f < 3; f++)
 							{
-								std::vector<double> temp(4, 0);
-								subdomain.Get_buffer(cell_ijk[0], cell_ijk[1], cell_ijk[2], g, m, incoming[f], temp);
+								subdomain.Get_buffer(cell_ijk[0], cell_ijk[1], cell_ijk[2], g, m, incoming[f], temp_solve);
 								for (int a = 0; a < 4; a++)
 								{
 									for (int b = 0; b < 4; b++)
 									{
-										bg[a] += dot(-1 * omega, N[incoming[f]][a][b])*temp[b];
+										bg[a] += dot(-1 * omega, N[incoming[f]][a][b])*temp_solve[b];
 									}
 								}
 							}
@@ -317,10 +318,10 @@ void Problem::Sweep()
 							// Now we need to translate the cell average to the average on each 
 							// face before we push to the down stream neighbers
 							// This allows for direct data movement (no cell to cell mapping needed)
-							double cell_average = bg[0];
+							cell_average = bg[0];
 							for (int f = 0; f < 3; f++)
 							{
-								Direction facecenter = my_cell.facecenters[outgoing[f]];
+								facecenter = my_cell.facecenters[outgoing[f]];
 
 								bg[0] = cell_average + facecenter.x*bg[1] + facecenter.y*bg[2] + facecenter.z*bg[3];
 								// Now store outgoing fluxes in the buffer arrays
@@ -341,7 +342,7 @@ void Problem::Sweep()
 		for (int f = 0; f < 3; f++)
 		{
 			// Get the neighbors for each face
-			Neighbor neighbor = subdomain.CellSets[(*it).cellset_id_loc].neighbors[outgoing[f]];
+			neighbor = subdomain.CellSets[(*it).cellset_id_loc].neighbors[outgoing[f]];
 
 			// If we are on a global boundary, store in a boundary buffer
 			if (neighbor.id < 0)

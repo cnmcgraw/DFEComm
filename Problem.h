@@ -104,6 +104,8 @@ private:
 	std::vector<std::vector<std::vector< Direction > > > N;
 	std::vector<std::vector< Direction > > L;
 	std::vector<double> source;
+	Direction omega,facecenter;
+	double sigma_t, cell_average;
 
 	int GetCell(int, int, int, int, int, int, int);
 
