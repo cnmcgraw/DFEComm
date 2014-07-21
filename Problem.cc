@@ -173,6 +173,10 @@ void Problem::Sweep()
 
 		// check to see if task has all required incident information
 		// Loop over incoming cellset faces
+		int num_recv = 1;
+		MPI_Request request[3] = { MPI_REQUEST_NULL, MPI_REQUEST_NULL, MPI_REQUEST_NULL };
+		//request = (MPI_REQUEST_NULL, MPI_REQUEST_NULL, MPI_REQUEST_NULL);
+		MPI_Status status[3];
 		for (int f = 0; f < 3; f++)
 		{
 			// Get the neighbors for each face
@@ -192,29 +196,32 @@ void Problem::Sweep()
 				if (incoming[f] == 0 || incoming[f] == 1)
 				{
 					int size = cells_y*cells_z*group_per_groupset*angle_per_angleset * 4;
-					MPI_Status status;
+					//MPI_Status status;
 					// buffer,size of buffer, data type, target, tag, comm
-					MPI_Recv(&subdomain.X_buffer[0], size, MPI_DOUBLE, neighbor.SML, target, MPI_COMM_WORLD, &status);
+					MPI_Irecv(&subdomain.X_buffer[0], size, MPI_DOUBLE, neighbor.SML, target, MPI_COMM_WORLD, &request[num_recv]);
+					num_recv += 1;
 				}
 				if (incoming[f] == 2 || incoming[f] == 3)
 				{
 					int size = cells_x*cells_z*group_per_groupset*angle_per_angleset * 4;
-					MPI_Status status;
+					//MPI_Status status;
 					// buffer,size of buffer, data type, target, tag, comm
-					MPI_Recv(&subdomain.Y_buffer[0], size, MPI_DOUBLE, neighbor.SML, target, MPI_COMM_WORLD, &status);
+					MPI_Irecv(&subdomain.Y_buffer[0], size, MPI_DOUBLE, neighbor.SML, target, MPI_COMM_WORLD, &request[num_recv]);
+					num_recv += 1;
 				}
 				if (incoming[f] == 4 || incoming[f] == 5)
 				{
 					int size = cells_x*cells_y*group_per_groupset*angle_per_angleset * 4;
-					MPI_Status status;
+					//MPI_Status status;
 					// buffer,size of buffer, data type, target, tag, comm
 					//start_receive = clock();
-					MPI_Recv(&subdomain.Z_buffer[0], size, MPI_DOUBLE, neighbor.SML, target, MPI_COMM_WORLD, &status);
+					MPI_Irecv(&subdomain.Z_buffer[0], size, MPI_DOUBLE, neighbor.SML, target, MPI_COMM_WORLD, &request[num_recv]);
 					//duration_receive = (std::clock() - start_receive) / (double)CLOCKS_PER_SEC;
-
+					num_recv += 1;
 				}
 			}
 		}
+		MPI_Waitall(3, &request[0], &status[0]);
 		//duration_receive = (std::clock() - start_task) / (double)CLOCKS_PER_SEC;
 
 		// We march through the cells first in x, then y, then z
@@ -313,7 +320,8 @@ void Problem::Sweep()
 
 							//start_phi = clock();
 							// Now we accumulate the fluxes into phi;
-							my_cell.phi[(*it).groupset_id*group_per_groupset + g] += bg[0] * quad.Anglesets[(*it).angleset_id].Weights[m];
+							for (int p = 0; p < 4; p++)
+								my_cell.phi[(*it).groupset_id*group_per_groupset * 4 + 4 * g + p] += bg[p] * quad.Anglesets[(*it).angleset_id].Weights[m];
 
 							// Now we need to translate the cell average to the average on each 
 							// face before we push to the down stream neighbers
@@ -530,7 +538,7 @@ void Problem::ZeroPhi()
 		{
 			// Loop through groups
 			for (int k = 0; k < subdomain.CellSets[i].Cells[j].phi.size(); k++)
-				subdomain.CellSets[i].Cells[j].phi[k] = 0;
+					subdomain.CellSets[i].Cells[j].phi[k] = 0;
 		}
 
 	}

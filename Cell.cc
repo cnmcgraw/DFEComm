@@ -45,7 +45,7 @@ void Cell::BuildCell(int Local_ID, int CS_ID, Problem* problem)
 	ComputeDFEMMatrices();
 
 	// Resize the phi vector
-	phi.resize(problem->num_groupsets*problem->group_per_groupset);
+	phi.resize(problem->num_groupsets*problem->group_per_groupset*4);
 
 }
 
