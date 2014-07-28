@@ -11,12 +11,14 @@ Quadrature::~Quadrature()
 
 void Quadrature::BuildQuadrature(Problem_Input* input) 
 {
+	int rank;
+	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
 	num_polar = input->num_polar;
 	num_azim = input->num_azim;
 	num_angles = num_polar*num_azim;
 
 	// Resize all the vectors
-
 	Omegas.resize(num_angles);
 	Weights.resize(num_angles, 1./num_angles);
 
@@ -101,7 +103,6 @@ void Quadrature::BuildQuadrature(Problem_Input* input)
 				Anglesets[2 * i].Omegas[j - num_polar / 2] = Omegas[i*num_polar + j];
 				Anglesets[2 * i].Weights[j - num_polar / 2] = Weights[i*num_polar + j];
 			}
-			//std::cout << "Angleset: " << 2 * i << " " << 2 * i + 1 << std::endl;
 		}
 	}
 	//  Octant Aggregation
@@ -128,8 +129,9 @@ void Quadrature::BuildQuadrature(Problem_Input* input)
 		
 	}
 	else
-		std::cout << "Invalid Angle Aggregation Type" << std::endl;
- 
+	{
+		if (rank == 0){ std::cout << "Invalid Angle Aggregation Type" << std::endl; }
+	}
 }
 
 
@@ -251,90 +253,3 @@ Direction operator*(double a, Direction omega)
 
 	return omega;
 }
-
-//double ComputeAngles()
-//{
-//  // Compute the total number of directions
-//  int numAngles = input.num_polar * input.num_azim;
-//  qst.resize(numAngles);
-//  for(size_t i=0; i<qst.size(); ++i)
-//    qst[i].resize(4);  // 0 = weight, 1-3 = direction cosines
-//
-//  // Order of the Legendre polynomial
-//  int nRoots = num_polar;
-//  // Temporary storage for the roots and weights (polar data)
-//  vector<double> Lxi(nRoots,0.0);
-//  vector<double> Lw(nRoots,0.0);
-//
-//  // Compute roots and weights (polar data)
-//  eval_roots_legendre(nRoots, norm, Lxi, Lw);
-//
-//  // Temporary data for the azimuthal data
-//  double azim_angle, azim_weight;
-//  double costheta, sintheta = 0.0;
-//  double _nazimuth = (double) nazimuth;
-//  // Represents the starting angle (delta_phi = half of the angle between azimuthal angles)
-//  double delta_phi = pi()/(4.*_nazimuth);
-//  // Constant weight per level for all levels
-//  azim_weight = 2.0*delta_phi; // = PI/(2.*_nazimuth) !!
-//
-//  int iord = 0;
-//
-//  // Starting azimuthal angle for any polar  level
-//  azim_angle = delta_phi;
-//  // Angle between two azimuthal angles = 2.*delta_phi
-//
-//  for (int i=0; i<num_azim; ++i)
-//  {
-//    for (int j=num_polar/2; j<nRoots; ++j)
-//    {
-//      costheta = Lxi[j];
-//      sintheta = std::sqrt(1.0-std::pow(costheta,2));
-//      iord = j + (i-1)*num_polar/2;                     // increment direction index
-//      qst[iord][MU]  = cos(azim_angle) * sintheta; // cos(angle_azim)*sin(angle_polar)
-//      qst[iord][ETA] = sin(azim_angle) * sintheta; // sin(angle_azim)*sin(angle_polar)
-//      qst[iord][XI]  = Lxi[j];                     // cos(angle_polar)
-//      qst[iord][WT]  = azim_weight * Lw[j];        // global weight = Chebyshev*Gauss_legendre
-//    }
-//    azim_angle += 2.*delta_phi;
-//  }
-//}
-//
-//void Quadrature::eval_roots_legendre()
-//{
-//  int nRoots = input.num_polar;
-//
-//  GLRoots.resize(nRoots);
-//  GLWeights.resize(nRoots);
-//
-//  double x1 = -1.0;
-//  double x2 = 1.0;
-//
-//  int m = (nRoots+1)/2;
-//  double xm = 0.5 * (x2+x1);
-//  double xl = 0.5 * (x2-x1);
-//
-//  for(int i=1; i<=m; ++i)
-//  {
-//    double z1, pp, z = cos(PI * (i-0.25) / (nRoots+0.5));
-//    do
-//    {
-//      double p1 = 1.0, p2 = 0.0;
-//      for(int j=1; j<=nRoots; j++)
-//      {
-//        real8 p3 = p2;
-//        p2 = p1;
-//        p1 = ((2.0*j-1.0)*z*p2 - (j-1.0)*p3) / j;
-//      }
-//      pp = nRoots * (z*p1 - p2) / (z*z - 1.0);
-//      z1 = z;
-//      z = z1 - p1/pp;
-//    }
-//    while (fabs(z - z1) > TOL);
-//
-//    GLRoots[i-1] = xm - xl * z;
-//    GLRoots[nRoots-i] = xm + xl * z;
-//    GLWeights[i-1] = norm * xl / ((1.0 - z*z)*pp*pp);
-//    GLWeights[nRoots-i] =  GLWeights[i-1];
-//  }
-//}

@@ -75,6 +75,7 @@ public:
 private:
 	std::string name;
 	std::vector<std::string> inpL;
+	int rank;
 
 	// If the user defines a problem_size, need to specify all the parameters
 	void DefineProblem();

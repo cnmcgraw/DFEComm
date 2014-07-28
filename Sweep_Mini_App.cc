@@ -22,6 +22,8 @@ int main(int argc, char **argv)
 
   // Begin MPI
   MPI_Init (&argc, &argv);
+  int rank;
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
   // Parse the command line
   string input_file_name, output_file_name;
@@ -38,7 +40,7 @@ int main(int argc, char **argv)
 
   if (input_file_name.empty())
   {
-	std::cout << "Need to specify input file (Did you forget '-f'?)" << std::endl;
+	  if (rank == 0){ std::cout << "Need to specify input file (Did you forget '-f'?)" << std::endl; }
 	MPI_Abort(MPI_COMM_WORLD, 1);
   }
 
@@ -53,8 +55,10 @@ int main(int argc, char **argv)
   // Create input and output streams
     if ((input).fail())
     {
-      std::cout << "I/O error trying to open the file " << input_file_name
-        << "." << std::endl;
+		if (rank == 0){
+			std::cout << "I/O error trying to open the file " << input_file_name
+				<< "." << std::endl;
+		}
 	  abort();
     }
 
@@ -63,8 +67,10 @@ int main(int argc, char **argv)
   output.open(output_file_name.c_str());
     if ((output).fail())
     {
-      std::cout << "I/O error trying to open the file " << output_file_name
-       << "." << std::endl;
+		if (rank == 0){
+			std::cout << "I/O error trying to open the file " << output_file_name
+				<< "." << std::endl;
+		}
 	  abort();
     }
 
@@ -77,8 +83,6 @@ int main(int argc, char **argv)
   problem->BuildProblem(input_data);
  
   // Perform the sweep
-  int rank;
-  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   std::clock_t start;
   long double duration, total_duration;
   total_duration = 0;
@@ -87,25 +91,27 @@ int main(int argc, char **argv)
   {	  
 	  problem->ZeroPhi();
 	  start = std::clock();
-	  if (rank == 0){ std::cout << "     SWEEP " << i + 1 << std::endl; }
-	  problem->Sweep();
+	  if (rank == 0){ output << "  SWEEP " << i + 1 << std::endl; }
+	  problem->Sweep(output);
 	  MPI_Barrier(MPI_COMM_WORLD);
 	  duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
 	  if (rank == 0){
-		  std::cout << "     Sweep " << i + 1 << " took " << duration << " seconds." << std::endl;
-		  std::cout << " " << std::endl;
+		  output << "  Sweep " << i + 1 << " took " << duration << " seconds." << std::endl;
+		  output << " " << std::endl;
 	  }
 	  total_duration += duration;
   }
   total_duration = total_duration / input_data->num_sweeps;
   if (rank == 0){
-	  std::cout << "Average Sweep Time: " << total_duration << " seconds." << std::endl;
+	  output << "Average Sweep Time: " << total_duration << " seconds." << std::endl;
   }
 
   MPI_Finalize();
 
   delete input_data;
   delete problem;
+  input.close();
+  output.close();
 
   return 0;
 }

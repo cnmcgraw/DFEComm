@@ -95,30 +95,13 @@ void Cell::ComputeCellID(int Local_ID, int CS_ID, Problem* problem)
 	cells_y = 2*problem->pin_y*problem->refinement/problem->num_cellsets[1];
 	cells_z = problem->z_planes/problem->num_cellsets[2];
 
-	//std::cout << "cells(x,y,z)= " << cells_x << " " << cells_y << " " << cells_z << std::endl;
-
 	cells_per_cellset = cells_x*cells_y*cells_z;
-
-	//std::cout << "cells_per_cellset= " << cells_per_cellset << std::endl;
 
 	CellID = CS_ID*cells_per_cellset + Local_ID;
 	LocalCellID = Local_ID;
 
 	localijk.resize(3);
 	GetCellijk(LocalCellID, cells_x, cells_y, cells_z, localijk);
-	//std::cout << "Local_ijk: " << localijk[0] << " " << localijk[1] << " " << localijk[2] << std::endl;
-
-	//globalijk.resize(3);
-	//// First recomputed Cellsets ijk and store it in global ijk
-	//GetCellijk(CS_ID, problem->num_cellsets[0], problem->cellsets[1], 
-	//	problem->num_cellsets[2], globalijk);
-
-	//// Now compute cells Global ijk and overwrite what's stored in there
-	//globalijk[0] = globalijk[0]*cells_x + localijk[0];
-	//globalijk[1] = globalijk[1]*cells_y + localijk[1];
-	//globalijk[2] = globalijk[2]*cells_z + localijk[2];
-
-	//std::cout << "Global_ijk: " << globalijk[0] << " " << globalijk[1] << " " << globalijk[2] << std::endl;
 }
 
 void Cell::GetNeighbors(int CS_ID)

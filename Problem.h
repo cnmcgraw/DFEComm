@@ -4,6 +4,7 @@
 
 #include <vector>
 #include <string>
+#include <fstream>
 #include "Problem_Input.h"
 #include "Quadrature.h"
 
@@ -89,7 +90,7 @@ public:
 	void BuildProblem(Problem_Input*);
 
 	// This function performs the sweep
-	void Sweep();
+	void Sweep(std::ofstream&);
 
 	// Zeroes out the phi vector before each sweep.
 	void ZeroPhi();

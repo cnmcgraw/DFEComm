@@ -100,9 +100,11 @@ void Subdomain::ComputeCellSetID(int SML_ID, Problem* problem)
 }
 void Subdomain::SetBoundaryConditions(Problem* problem)
 {
+	int rank;
+	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 	if (problem->bcs == 1)
 	{
-		std::cout << "Reflecting boundary conditions not implemented yet" << std::endl;
+		if (rank == 0){ std::cout << "Reflecting boundary conditions not implemented yet" << std::endl; }
 		MPI_Abort(MPI_COMM_WORLD, 1);
 	}
 	else
@@ -111,7 +113,6 @@ void Subdomain::SetBoundaryConditions(Problem* problem)
 		for (int i = 0; i < bc.size(); i++)
 		{
 			bc[i] = 7. / 3.;
-			//bc[i] = 1.0;
 		}
 	}
 

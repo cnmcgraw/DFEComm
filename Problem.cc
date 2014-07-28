@@ -1,8 +1,5 @@
 #include "Problem.h"
 #include "Subdomain.h"
-#include <string>
-#include <vector>
-#include <fstream>
 #include <iostream>
 #include <sstream>
 #include <stdio.h>
@@ -105,16 +102,12 @@ void Problem::BuildProblem(Problem_Input* input)
 
 }
 
-void Problem::Sweep()
+void Problem::Sweep(std::ofstream &output)
 {
 	// Timers
 	std::clock_t start = std::clock();
-	std::clock_t start_task, start_solve, start_send, start_receive;
-	std::clock_t start_cell, start_ang, start_group;
-	std::clock_t start_incflux, start_A, start_phi;
-	long double duration_task, duration_send, duration_receive, duration_solve;
-	long double duration_cell, duration_ang, duration_group;
-	long double duration_rhs, duration_incflux, duration_A, duration_phi;
+	std::clock_t start_task;
+	long double duration_task;
 
 	// PreAllocated incoming and outgoing face vectors;
 	std::vector<int> incoming(3,0), outgoing(3,0);
@@ -133,15 +126,6 @@ void Problem::Sweep()
 	{
 		target = 0;
 		start_task = std::clock();
-		//duration_receive = 0;
-		//duration_solve = 0;
-		//duration_cell = 0;
-		//duration_ang = 0;
-		//duration_group = 0;
-		//duration_rhs = 0;
-		//duration_incflux = 0;
-		//duration_A = 0;
-		//duration_phi = 0;
 		// Number of cells in each direction in this cellset
 		int cells_x = subdomain.CellSets[(*it).cellset_id_loc].cells_x;
 		int cells_y = subdomain.CellSets[(*it).cellset_id_loc].cells_y;
@@ -158,7 +142,7 @@ void Problem::Sweep()
 		{
 			// Get the neighbors for each face
 			neighbor = subdomain.CellSets[(*it).cellset_id_loc].neighbors[f];
-			// Again check for incoming and get the buffer matrices from faces
+			// Determine which faces are incoming and which are outgoing
 			if (dot((*it).omega, neighbor.direction) < 0)
 			{
 				incoming[r] = f;
@@ -175,7 +159,6 @@ void Problem::Sweep()
 		// Loop over incoming cellset faces
 		int num_recv = 1;
 		MPI_Request request[3] = { MPI_REQUEST_NULL, MPI_REQUEST_NULL, MPI_REQUEST_NULL };
-		//request = (MPI_REQUEST_NULL, MPI_REQUEST_NULL, MPI_REQUEST_NULL);
 		MPI_Status status[3];
 		for (int f = 0; f < 3; f++)
 		{
@@ -187,42 +170,30 @@ void Problem::Sweep()
 			{
 				subdomain.Get_buffer_from_bc(incoming[f]);
 			}
-			// These are blocking recieves. Since we know the task order of the sweep
-			// We have the task wait until it has all its incident fluxes before
-			// we continue with the sweep
 			else
 			{
 				target = GetTarget((*it).angleset_id, (*it).groupset_id, (*it).cellset_id);
 				if (incoming[f] == 0 || incoming[f] == 1)
 				{
 					int size = cells_y*cells_z*group_per_groupset*angle_per_angleset * 4;
-					//MPI_Status status;
-					// buffer,size of buffer, data type, target, tag, comm
 					MPI_Irecv(&subdomain.X_buffer[0], size, MPI_DOUBLE, neighbor.SML, target, MPI_COMM_WORLD, &request[num_recv]);
 					num_recv += 1;
 				}
 				if (incoming[f] == 2 || incoming[f] == 3)
 				{
 					int size = cells_x*cells_z*group_per_groupset*angle_per_angleset * 4;
-					//MPI_Status status;
-					// buffer,size of buffer, data type, target, tag, comm
 					MPI_Irecv(&subdomain.Y_buffer[0], size, MPI_DOUBLE, neighbor.SML, target, MPI_COMM_WORLD, &request[num_recv]);
 					num_recv += 1;
 				}
 				if (incoming[f] == 4 || incoming[f] == 5)
 				{
 					int size = cells_x*cells_y*group_per_groupset*angle_per_angleset * 4;
-					//MPI_Status status;
-					// buffer,size of buffer, data type, target, tag, comm
-					//start_receive = clock();
 					MPI_Irecv(&subdomain.Z_buffer[0], size, MPI_DOUBLE, neighbor.SML, target, MPI_COMM_WORLD, &request[num_recv]);
-					//duration_receive = (std::clock() - start_receive) / (double)CLOCKS_PER_SEC;
 					num_recv += 1;
 				}
 			}
 		}
 		MPI_Waitall(3, &request[0], &status[0]);
-		//duration_receive = (std::clock() - start_task) / (double)CLOCKS_PER_SEC;
 
 		// We march through the cells first in x, then y, then z
 		// The order (left to right or right to left) depends on what 
@@ -246,10 +217,10 @@ void Problem::Sweep()
 
 					// Since the source is piece-wise constant, we only need to update the average value
 					source[0] = my_cell.GetSource();
+
 					// Loop over angles in the angleset
 					for (int m = 0; m < angle_per_angleset; m++)
 					{
-						//start_ang = clock();
 						// Get the direction of the angle
 						omega = quad.Anglesets[(*it).angleset_id].Omegas[m];
 
@@ -273,23 +244,20 @@ void Problem::Sweep()
 									A_tilde[a][b] += dot(-1 * omega, N[incoming[f]][a][b]);
 								}
 							}						
-						} // faces
+						}
 
 						// Loop over groups in this groupset
 						for (int g = 0; g < group_per_groupset; g++)
 						{
-							//start_group = clock();
 							// Initialize the b vector
 							for (int a = 0; a < 4; a++)
 								bg[a] = RHS[a];
 
-							
-
 							// Retrieve this cells sigma tot (this is in the group loop to simulate
 							// multi-group cross sections
 							sigma_t = my_cell.GetSigmaTot();
+
 							// Need to get incoming fluxes for the RHS
-							//start_incflux = clock();
 							for (int f = 0; f < 3; f++)
 							{
 								subdomain.Get_buffer(cell_ijk[0], cell_ijk[1], cell_ijk[2], g, m, incoming[f], temp_solve);
@@ -301,8 +269,6 @@ void Problem::Sweep()
 									}
 								}
 							}
-							//duration_incflux = clock() - start_group;
-							//start_A = clock();
 							// Add the contribution to the A matrix and the RHS vector
 							for (int a = 0; a < 4; a++)
 							{
@@ -311,14 +277,10 @@ void Problem::Sweep()
 									A[a][b] = A_tilde[a][b] + sigma_t * M[a];	
 								}
 							}
-							//duration_A += clock() - start_group;
 
-							// Solve A^-1*RHS and store it in RHS (4 = number of elements)
-							//start_solve = clock();
+							// Solve A^-1*RHS wwith Gaussian Elimination and store it in RHS (4 = number of elements)
 							GE_no_pivoting(A, bg, 4);
-							//duration_solve += (std::clock() - start_group);
 
-							//start_phi = clock();
 							// Now we accumulate the fluxes into phi;
 							for (int p = 0; p < 4; p++)
 								my_cell.phi[(*it).groupset_id*group_per_groupset * 4 + 4 * g + p] += bg[p] * quad.Anglesets[(*it).angleset_id].Weights[m];
@@ -335,17 +297,11 @@ void Problem::Sweep()
 								// Now store outgoing fluxes in the buffer arrays
 								subdomain.Set_buffer(cell_ijk[0], cell_ijk[1], cell_ijk[2], g, m, outgoing[f], task, bg);
 							}
-							//duration_phi += clock() - start_group;
-							//duration_group += std::clock() - start_group;
 						} //groups
-						//duration_ang += std::clock() - start_ang;
 					} //angles
-					//duration_cell += std::clock() - start_cell;
 				} // cells in x
 			} // cells in y
 		} // cells in z
-		
-		//start_send = clock();
 
 		for (int f = 0; f < 3; f++)
 		{
@@ -376,68 +332,36 @@ void Problem::Sweep()
 				{
 					int size = cells_y*cells_z*group_per_groupset*angle_per_angleset * 4;
 					MPI_Request request;
-					// buffer,size of buffer, data type, target, tag, comm
 					MPI_Isend(&subdomain.X_Send_buffer[task*subdomain.X_buffer.size()], size, MPI_DOUBLE, neighbor.SML, target, MPI_COMM_WORLD, &request);
-					//MPI_Wait(&request, &status);
 				}
 				if (outgoing[f] == 2 || outgoing[f] == 3)
 				{
 					int size = cells_x*cells_z*group_per_groupset*angle_per_angleset * 4;
 					MPI_Request request;
-					// buffer,size of buffer, data type, target, tag, comm
 					MPI_Isend(&subdomain.Y_Send_buffer[task*subdomain.Y_buffer.size()], size, MPI_DOUBLE, neighbor.SML, target, MPI_COMM_WORLD, &request);
-					//MPI_Wait(&request, &status);
 				}
 				if (outgoing[f] == 4 || outgoing[f] == 5)
 				{
 					int size = cells_x*cells_y*group_per_groupset*angle_per_angleset * 4;
 					MPI_Request request;
-					// buffer,size of buffer, data type, target, tag, comm
 					MPI_Isend(&subdomain.Z_Send_buffer[task*subdomain.Z_buffer.size()], size, MPI_DOUBLE, neighbor.SML, target, MPI_COMM_WORLD, &request);
-					//MPI_Wait(&request, &status);
 
 				}
 			}
 
 		}
-		//duration_send = (std::clock() - start_send) / (double)CLOCKS_PER_SEC;
 		duration_task = (std::clock() - start_task) / (double)CLOCKS_PER_SEC;
-		
-		//duration_cell = duration_cell - duration_ang;
-		//duration_ang = duration_ang - duration_group;
-		//duration_group = duration_group / (double)CLOCKS_PER_SEC;
-		////duration_rhs = duration_rhs / (double)CLOCKS_PER_SEC;
-		//duration_phi = (duration_phi - duration_solve) / (double)CLOCKS_PER_SEC;
-		//duration_solve = (duration_solve - duration_A) / (double)CLOCKS_PER_SEC;
-		//duration_A = duration_A / (double)CLOCKS_PER_SEC;
-		//duration_incflux = duration_incflux / (double)CLOCKS_PER_SEC;
-		//
-		//
-		//
-
-		//duration_ang = duration_ang / (double)CLOCKS_PER_SEC;
-		//duration_cell = duration_cell / (double)CLOCKS_PER_SEC;
-		//if (rank == 0){ 
-			//std::cout << "Rank = " << rank << " Task: " << task << " duration = " << duration_task << " seconds." << std::endl;
-			//std::cout << "    Get info duration   = " << duration_receive << " seconds." << std::endl;
-			//std::cout << "    cell loop duration  = " << duration_cell << " seconds." << std::endl;
-			//std::cout << "    angle loop duration = " << duration_ang << " seconds." << std::endl;
-			//std::cout << "    group loop duration = " << duration_group << " seconds." << std::endl;
-			////std::cout << "        Get rhs duration    = " << duration_rhs << " seconds." << std::endl;
-			////std::cout << "        Inc flux duration   = " << duration_incflux << " seconds." << std::endl;
-			//std::cout << "        Build A duration    = " << duration_A << " seconds." << std::endl;
-			//std::cout << "        solve duration      = " << duration_solve << " seconds." << std::endl;
-			//std::cout << "        Get phi duration    = " << duration_phi << " seconds." << std::endl;
-			//std::cout << "    send duration       = " << duration_send << " seconds." << std::endl;
-		//}
+		if (rank == 0){ 
+			output << "    Task: " << task << " duration = " << duration_task << " seconds." << std::endl;
+		}
 	} // tasks
 	long double duration = (std::clock() - start) / (double) CLOCKS_PER_SEC;
 
-	std::cout << "  Rank: " << rank << " Sweep duration: " << duration << " seconds." << std::endl;
+	//std::cout << "  Rank: " << rank << " Sweep duration: " << duration << " seconds." << std::endl;
 	
+	////Printing out Phi
 	//if (rank == 0)
 	//{
-
 	//	std::cout << "Phi[g = 0] = " << std::endl;
 	//	for (int c = 0; c < subdomain.total_overload; c++)
 	//	{
@@ -523,8 +447,6 @@ unsigned int Problem::GetTarget(int as, int gs, int cs)
 
 	unsigned int target;
 	target = cs + 1000 * gs + pow(1000,2) * as + pow(1000,3);
-	//target = pow(10000, 3);
-	//std::cout << "CS, GS, AS, target: " << cs << " " << gs << " " << as << " " << target << std::endl;
 	return target;
 }
 
