@@ -32,6 +32,10 @@ public:
 	vector<double> X_buffer, X_Send_buffer;
 	vector<double> Y_buffer, Y_Send_buffer;
 	vector<double> Z_buffer, Z_Send_buffer;
+	// This hold not-yet-needed messages
+	vector<double> Received_buffer;
+	vector<vector<int> > Received_info;
+	int max_size;
 
 	// Build all the cellsets this SML owns
 	void BuildSubdomain(int, Problem*);
@@ -46,7 +50,7 @@ public:
 	double GetBoundaryCondition(int);
 
 	// Allocate the send buffers
-	void AllocateSendBuffers(int);
+	void AllocateBuffers(int);
 
 	// Set functions for the X, Y, and Z buffers
 	void Set_buffer(int, int, int, int, int, int, int, vector<double>&);

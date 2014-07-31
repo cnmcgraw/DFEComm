@@ -121,11 +121,25 @@ double Subdomain::GetBoundaryCondition(int Boundary)
 {
 	return bc[Boundary];
 }
-void Subdomain::AllocateSendBuffers(int num_tasks)
+void Subdomain::AllocateBuffers(int num_tasks)
 {
 	X_Send_buffer.resize(cells_y*cells_z*group_per_groupset*angle_per_angleset * 4*num_tasks);
 	Y_Send_buffer.resize(cells_x*cells_z*group_per_groupset*angle_per_angleset * 4*num_tasks);
 	Z_Send_buffer.resize(cells_x*cells_y*group_per_groupset*angle_per_angleset * 4*num_tasks);
+	
+	max_size; 
+	max_size = X_buffer.size();
+	if (Y_buffer.size() > max_size)
+		max_size = Y_buffer.size();
+	if (Z_buffer.size() > max_size)
+		max_size = Z_buffer.size();
+
+	Received_buffer.resize(3 * max_size * num_tasks);
+
+	// Vector of (tag, source, count)'s
+	Received_info.resize(3*num_tasks, std::vector<int>(3,0));
+
+
 }
 void Subdomain::Set_buffer(int cell_x, int cell_y, int cell_z, int group, int angle, int face, int task, vector<double>& RHS)
 {

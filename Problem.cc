@@ -84,7 +84,7 @@ void Problem::BuildProblem(Problem_Input* input)
 	std::sort(All_Tasks.begin(), All_Tasks.end(), by_depth());
 
 	// Allocate the Send Buffers
-	subdomain.AllocateSendBuffers(num_tasks);
+	subdomain.AllocateBuffers(num_tasks);
 
 	// Pre-allocate the DFEM Matrices
 	A_tilde.resize(4, std::vector<double>(4, 0.0));
@@ -110,7 +110,8 @@ void Problem::Sweep(std::ofstream &output)
 	long double duration_task;
 
 	// PreAllocated incoming and outgoing face vectors;
-	std::vector<int> incoming(3,0), outgoing(3,0);
+	std::vector<std::vector<int> > incoming(3, std::vector<int>(2,0));
+	std::vector<int> outgoing(3,0);
 	std::vector<int> cell_ijk(3, 0);
 	std::vector<double> temp_solve(4, 0);
 	Neighbor neighbor;
@@ -120,7 +121,7 @@ void Problem::Sweep(std::ofstream &output)
 //	check to see if task is ready -- wait until it is (mpi poll?)
 	std::vector<task>::iterator it = All_Tasks.begin();
 	std::vector<task>::iterator it_end = All_Tasks.end();
-	int task = 0;
+	int task(0), recv(0);
 	int target;
 	for (; it != it_end; it++, task++)
 	{
@@ -145,7 +146,8 @@ void Problem::Sweep(std::ofstream &output)
 			// Determine which faces are incoming and which are outgoing
 			if (dot((*it).omega, neighbor.direction) < 0)
 			{
-				incoming[r] = f;
+				incoming[r][0] = f;
+				incoming[r][1] = neighbor.SML;
 				r += 1;
 			}
 			else
@@ -156,45 +158,178 @@ void Problem::Sweep(std::ofstream &output)
 		}
 
 		// check to see if task has all required incident information
-		// Loop over incoming cellset faces
-		int num_recv = 1;
-		MPI_Request request[3] = { MPI_REQUEST_NULL, MPI_REQUEST_NULL, MPI_REQUEST_NULL };
-		MPI_Status status[3];
-		for (int f = 0; f < 3; f++)
+		bool ready = false;
+		std::vector<bool> ready_face(3, false);
+		target = GetTarget((*it).angleset_id, (*it).groupset_id, (*it).cellset_id);
+		int flag, count;
+		MPI_Status status, status2;
+		MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &flag, &status);
+		if (flag == true)
 		{
-			// Get the neighbors for each face
-			neighbor = subdomain.CellSets[(*it).cellset_id_loc].neighbors[incoming[f]];
-
-			// Get buffers from boundary conditions or neighbor SMLs
-			if (neighbor.SML < 0 || neighbor.SML == rank)
+			// Check if the message is for this task
+			if (status.MPI_TAG == target)
 			{
-				subdomain.Get_buffer_from_bc(incoming[f]);
+				for (int f = 0; f < 3; f++)
+				{
+					if (status.MPI_SOURCE == incoming[f][1])
+					{
+						MPI_Get_count(&status, MPI_DOUBLE, &count);
+						if (incoming[f][0] == 0 || incoming[f][0] == 1)
+						{
+							MPI_Recv(&subdomain.X_buffer[0], count, MPI_DOUBLE, incoming[f][1], target, MPI_COMM_WORLD, &status2);
+							ready_face[f] = true;
+						}
+						if (incoming[f][0] == 2 || incoming[f][0] == 3)
+						{
+							MPI_Recv(&subdomain.Y_buffer[0], count, MPI_DOUBLE, incoming[f][1], target, MPI_COMM_WORLD, &status2);
+							ready_face[f] = true;
+						}
+						if (incoming[f][0] == 4 || incoming[f][0] == 5)
+						{
+							MPI_Recv(&subdomain.Z_buffer[0], count, MPI_DOUBLE, incoming[f][1], target, MPI_COMM_WORLD, &status2);
+							ready_face[f] = true;
+						}
+					}
+				}
 			}
+			// if we don't need this messsage yet, store it in Received_buffer and store the info about it in Received_info
 			else
 			{
-				target = GetTarget((*it).angleset_id, (*it).groupset_id, (*it).cellset_id);
-				if (incoming[f] == 0 || incoming[f] == 1)
+				MPI_Get_count(&status, MPI_DOUBLE, &count);
+				MPI_Recv(&subdomain.Received_buffer[(recv)*subdomain.max_size], count, MPI_DOUBLE, status.MPI_SOURCE, status.MPI_TAG, MPI_COMM_WORLD, &status);
+				subdomain.Received_info[recv][0] = status.MPI_TAG;
+				subdomain.Received_info[recv][1] = status.MPI_SOURCE;
+				subdomain.Received_info[recv][2] = count;
+				recv++;
+			}
+		}
+		// Now look for incoming info from boundary buffers
+		for (int f = 0; f < 3; f++)
+		{
+			if (incoming[f][1] < 0 || incoming[f][1] == rank)
+			{
+				subdomain.Get_buffer_from_bc(incoming[f][0]);
+				ready_face[f] = true;
+			}
+		}
+		ready = (ready_face[0] && ready_face[1] && ready_face[2]);
+
+		// Check in Received buffer for info we already received
+		for (int inf = 0; inf < recv; inf++)
+		{
+			// Matching tags?
+			if (subdomain.Received_info[inf][0] == target)
+			{
+				for (int f = 0; f < 3; f++)
 				{
-					int size = cells_y*cells_z*group_per_groupset*angle_per_angleset * 4;
-					MPI_Irecv(&subdomain.X_buffer[0], size, MPI_DOUBLE, neighbor.SML, target, MPI_COMM_WORLD, &request[num_recv]);
-					num_recv += 1;
-				}
-				if (incoming[f] == 2 || incoming[f] == 3)
-				{
-					int size = cells_x*cells_z*group_per_groupset*angle_per_angleset * 4;
-					MPI_Irecv(&subdomain.Y_buffer[0], size, MPI_DOUBLE, neighbor.SML, target, MPI_COMM_WORLD, &request[num_recv]);
-					num_recv += 1;
-				}
-				if (incoming[f] == 4 || incoming[f] == 5)
-				{
-					int size = cells_x*cells_y*group_per_groupset*angle_per_angleset * 4;
-					MPI_Irecv(&subdomain.Z_buffer[0], size, MPI_DOUBLE, neighbor.SML, target, MPI_COMM_WORLD, &request[num_recv]);
-					num_recv += 1;
+					// Matching SML?
+					if (subdomain.Received_info[inf][1] == incoming[f][1])
+					{
+						if (incoming[f][0] == 0 || incoming[f][0] == 1)
+						{
+							std::vector<double>::iterator buf_it = subdomain.Received_buffer.begin() + inf*subdomain.max_size;
+							subdomain.X_buffer.assign(buf_it, buf_it + subdomain.Received_info[inf][2]);
+							ready_face[f] = true;
+						}
+						if (incoming[f][0] == 2 || incoming[f][0] == 3)
+						{
+							std::vector<double>::iterator buf_it = subdomain.Received_buffer.begin() + inf*subdomain.max_size;
+							subdomain.Y_buffer.assign(buf_it, buf_it + subdomain.Received_info[inf][2]);
+							ready_face[f] = true;
+						}
+						if (incoming[f][0] == 4 || incoming[f][0] == 5)
+						{
+							std::vector<double>::iterator buf_it = subdomain.Received_buffer.begin() + inf*subdomain.max_size;
+							subdomain.Z_buffer.assign(buf_it, buf_it + subdomain.Received_info[inf][2]);
+							ready_face[f] = true;
+						}
+					}
 				}
 			}
 		}
-		MPI_Waitall(3, &request[0], &status[0]);
+		ready = (ready_face[0] && ready_face[1] && ready_face[2]);
 
+		// Keep receiving messages until we have all our incoming info
+		while (ready == false)
+		{
+			// Now we probe for messages
+			MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &flag, &status);
+			if (flag == true)
+			{
+				// Check if the message is for this task
+				if (status.MPI_TAG == target)
+				{
+					for (int f = 0; f < 3; f++)
+					{
+						if (status.MPI_SOURCE == incoming[f][1])
+						{
+							MPI_Get_count(&status, MPI_DOUBLE, &count);
+							if (incoming[f][0] == 0 || incoming[f][0] == 1)
+							{
+								MPI_Recv(&subdomain.X_buffer[0], count, MPI_DOUBLE, incoming[f][1], target, MPI_COMM_WORLD, &status2);
+								ready_face[f] = true;
+							}
+							if (incoming[f][0] == 2 || incoming[f][0] == 3)
+							{
+								MPI_Recv(&subdomain.Y_buffer[0], count, MPI_DOUBLE, incoming[f][1], target, MPI_COMM_WORLD, &status2);
+								ready_face[f] = true;
+							}
+							if (incoming[f][0] == 4 || incoming[f][0] == 5)
+							{
+								MPI_Recv(&subdomain.Z_buffer[0], count, MPI_DOUBLE, incoming[f][1], target, MPI_COMM_WORLD, &status2);
+								ready_face[f] = true;
+							}
+						}
+					}
+				}
+				// if we don't need this messsage yet, store it in Received_buffer and store the info about it in Received_info
+				else
+				{
+					MPI_Get_count(&status, MPI_DOUBLE, &count);
+					MPI_Recv(&subdomain.Received_buffer[(recv)*subdomain.max_size], count, MPI_DOUBLE, status.MPI_SOURCE, status.MPI_TAG, MPI_COMM_WORLD, &status);
+					recv++;
+					subdomain.Received_info[task][0] = status.MPI_TAG;
+					subdomain.Received_info[task][1] = status.MPI_SOURCE;
+					subdomain.Received_info[task][2] = count;
+				}
+			}
+			ready = (ready_face[0] && ready_face[1] && ready_face[2]);
+		}
+		// Loop over incoming cellset faces
+		//int num_recv = 1;
+		//MPI_Request request[3] = { MPI_REQUEST_NULL, MPI_REQUEST_NULL, MPI_REQUEST_NULL };
+		//MPI_Status status[3];
+		//for (int f = 0; f < 3; f++)
+		//{
+		//	// Get buffers from boundary conditions or neighbor SMLs
+		//	if (incoming[f][1] < 0 || incoming[f][1] == rank)
+		//	{
+		//		subdomain.Get_buffer_from_bc(incoming[f][0]);
+		//	}
+		//	else
+		//	{
+		//		target = GetTarget((*it).angleset_id, (*it).groupset_id, (*it).cellset_id);
+		//		if (incoming[f][0] == 0 || incoming[f][0] == 1)
+		//		{
+		//			int size = cells_y*cells_z*group_per_groupset*angle_per_angleset * 4;
+		//			MPI_Irecv(&subdomain.X_buffer[0], size, MPI_DOUBLE, neighbor.SML, target, MPI_COMM_WORLD, &request[num_recv]);
+		//			num_recv += 1;
+		//		}
+		//		if (incoming[f][0] == 2 || incoming[f][0] == 3)
+		//		{
+		//			int size = cells_x*cells_z*group_per_groupset*angle_per_angleset * 4;
+		//			MPI_Irecv(&subdomain.Y_buffer[0], size, MPI_DOUBLE, neighbor.SML, target, MPI_COMM_WORLD, &request[num_recv]);
+		//			num_recv += 1;
+		//		}
+		//		if (incoming[f][0] == 4 || incoming[f][0] == 5)
+		//		{
+		//			int size = cells_x*cells_y*group_per_groupset*angle_per_angleset * 4;
+		//			MPI_Irecv(&subdomain.Z_buffer[0], size, MPI_DOUBLE, neighbor.SML, target, MPI_COMM_WORLD, &request[num_recv]);
+		//			num_recv += 1;
+		//		}
+		//	}
+		//}
+		//MPI_Waitall(3, &request[0], &status[0]); 
 		// We march through the cells first in x, then y, then z
 		// The order (left to right or right to left) depends on what 
 		// octant the angleset is in so we call GetCell to figure out where we are
@@ -241,7 +376,7 @@ void Problem::Sweep(std::ofstream &output)
 							{
 								for (int b = 0; b < 4; b++)
 								{
-									A_tilde[a][b] += dot(-1 * omega, N[incoming[f]][a][b]);
+									A_tilde[a][b] += dot(-1 * omega, N[incoming[f][0]][a][b]);
 								}
 							}						
 						}
@@ -260,12 +395,12 @@ void Problem::Sweep(std::ofstream &output)
 							// Need to get incoming fluxes for the RHS
 							for (int f = 0; f < 3; f++)
 							{
-								subdomain.Get_buffer(cell_ijk[0], cell_ijk[1], cell_ijk[2], g, m, incoming[f], temp_solve);
+								subdomain.Get_buffer(cell_ijk[0], cell_ijk[1], cell_ijk[2], g, m, incoming[f][0], temp_solve);
 								for (int a = 0; a < 4; a++)
 								{
 									for (int b = 0; b < 4; b++)
 									{
-										bg[a] += dot(-1 * omega, N[incoming[f]][a][b])*temp_solve[b];
+										bg[a] += dot(-1 * omega, N[incoming[f][0]][a][b])*temp_solve[b];
 									}
 								}
 							}

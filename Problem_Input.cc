@@ -23,6 +23,7 @@ bool Problem_Input::CheckComment(std::vector<std::string> inputline) {
 }
 void Problem_Input::ProcessInput(std::ifstream& input, std::ofstream& fout)
 {
+	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 	// Build and initialize mesh parameters
 	partition_function.resize(3, 1);
 	overload.resize(3, 1);
@@ -116,26 +117,6 @@ void Problem_Input::ProcessInput(std::ifstream& input, std::ofstream& fout)
 	if (problem_size != 0)
 		DefineProblem();
 
-	//std::cout << "pin_x = " <<  pin_x << std::endl;
-	//std::cout << "pin_y = " <<  pin_y << std::endl;
-	//std::cout << "z-planes = " << z_planes << std::endl;
-	//std::cout << "refinement= " <<  refinement << std::endl;
-	//std::cout << "Spatial Discretization = " <<  sp_disc << std::endl;
-	//std::cout << "bcs = " << bcs << std::endl;
-	//std::cout << "Number of Angles = " <<  num_polar*num_azim << std::endl;
-	//std::cout << "Angular Aggregation = " <<  ang_agg_type << std::endl;
-	//std::cout << "num_groups = " <<  num_groups << std::endl;
-	//std::cout << "num_groupsets = " <<  num_groupsets << std::endl;
-	//std::cout << "Number of Shared Memory Locations = " <<  num_SML << std::endl;
-	//std::cout << "Number of Threads per Shared Memory Location = " <<  num_TpSML << std::endl;
-	//std::cout << "Partition Type = " <<  partition_type << std::endl;
-	//for(int i =0; i<3; i++){
-	//	std::cout << "   " << partition_function[i] << " " << overload[i] << " " << num_cellsets[i] << std::endl;
-	//}
-	//std::cout << "Cells per cellset = " << pin_x*pin_y*pow(2 * refinement,2) * z_planes / (num_cellsets[0] * num_cellsets[1] * num_cellsets[2]) << std::endl;
-	//std::cout << "Scheduler Type = " <<  sched_type << std::endl;
-	//std::cout << "Number of Sweeps = " <<  num_sweeps << std::endl;
-
 	// Check for a valid problem (only 1 processor)
 	CheckProblemInput();
 	//Output(fout);
@@ -188,8 +169,10 @@ void Problem_Input::GetPartitionParameters()
 	}
 	// Extended Hybrid
 	if(partition_type == 3){
-		std::cout << "Extended Hybrid not implemented yet. Using default" 
-			<< " partitioning (KBA with overload=1)" << std::endl;
+		if (rank == 0){
+			std::cout << "Extended Hybrid not implemented yet. Using default"
+				<< " partitioning (KBA with overload=1)" << std::endl;
+		}
 		partition_type = 0;
 	}
 	// Volumetric
@@ -335,15 +318,15 @@ void Problem_Input::CheckProblemInput()
 {
 	// Check that spatial aggregation is integer multiple of 1/4 pin cells
 	if(!(2*pin_x/num_cellsets[0] == (int)2*pin_x/num_cellsets[0])){
-		std::cout << "Invalid Partition in x" << std::endl;
+		if (rank == 0){ std::cout << "Invalid Partition in x" << std::endl; }
 		MPI_Abort(MPI_COMM_WORLD,1);
 	}
 	if(!(2*pin_y/num_cellsets[1] == (int)2*pin_y/num_cellsets[1])){
-		std::cout << "Invalid Partition in y" << std::endl;
+		if (rank == 0){ std::cout << "Invalid Partition in y" << std::endl; }
 		MPI_Abort(MPI_COMM_WORLD,1);
 	}
 	if(!(z_planes/num_cellsets[2] == (int)z_planes/num_cellsets[2])){
-		std::cout << "Invalid Partition in z" << std::endl;
+		if (rank == 0){ std::cout << "Invalid Partition in z" << std::endl; }
 		MPI_Abort(MPI_COMM_WORLD,1);
 	}
 
@@ -352,24 +335,26 @@ void Problem_Input::CheckProblemInput()
 	for(int i = 0; i < 3; i++)
 		p = p*num_cellsets[i]/overload[i];
 	if(!(p == num_SML)){
-		std::cout << "Invalid Partitioning" << std::endl;
-		std::cout << "Specified number of SML = " << num_SML << " and P_eff = " << p << std::endl;
+		if (rank == 0){
+			std::cout << "Invalid Partitioning" << std::endl;
+			std::cout << "Specified number of SML = " << num_SML << " and P_eff = " << p << std::endl;
+		}
 		MPI_Abort(MPI_COMM_WORLD,1);
 	}
 
 	// Check that the number of angles per angleset is an integer
 	if(ang_agg_type == 2 && !(num_polar/2 == (int)num_polar/2)){
-		std::cout << "Invalid Polar Aggregation" << std::endl;
+		if (rank == 0){ std::cout << "Invalid Polar Aggregation" << std::endl; }
 		MPI_Abort(MPI_COMM_WORLD,1);
 	}
 	if(!(num_azim/4 == (int)num_azim/4)){
-		std::cout << "Invalid Number of Azimuthal Angles" << std::endl;
+		if (rank == 0){ std::cout << "Invalid Number of Azimuthal Angles" << std::endl; }
 		MPI_Abort(MPI_COMM_WORLD,1);
 	}
 
 	// Check that the number of groups per groupset is an integer
 	if(!(num_groups/num_groupsets == (int)num_groups/num_groupsets)){
-		std::cout << "Non-integer number of groups per groupset" << std::endl;
+		if (rank == 0){ std::cout << "Non-integer number of groups per groupset" << std::endl; }
 		MPI_Abort(MPI_COMM_WORLD,1);
 	}
 
@@ -385,7 +370,7 @@ std::vector<int> Problem_Input::FactorSMLCount()
 	{
 		if (num_SML & 2 != 0)
 		{
-			std::cout << "Cannot handle odd SML Counts" << std::endl;
+			if (rank == 0){ std::cout << "Automatic SML Factoring cannot handle odd SML Counts" << std::endl; }
 			MPI_Abort(MPI_COMM_WORLD, 1);
 		}
 		// if num_SML > 2 and even, Pz = 2
