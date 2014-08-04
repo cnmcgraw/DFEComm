@@ -83,18 +83,18 @@ int main(int argc, char **argv)
   problem->BuildProblem(input_data);
  
   // Perform the sweep
-  std::clock_t start;
+  double start;
   long double duration, total_duration;
   total_duration = 0;
   MPI_Barrier(MPI_COMM_WORLD);
   for (int i = 0; i < input_data->num_sweeps; i++)
   {	  
 	  problem->ZeroPhi();
-	  start = std::clock();
+	  start = MPI_Wtime();
 	  if (rank == 0){ output << "  SWEEP " << i + 1 << std::endl; }
 	  problem->Sweep(output);
 	  MPI_Barrier(MPI_COMM_WORLD);
-	  duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
+	  duration = (MPI_Wtime() - start); // / (double)CLOCKS_PER_SEC;
 	  if (rank == 0){
 		  output << "  Sweep " << i + 1 << " took " << duration << " seconds." << std::endl;
 		  output << " " << std::endl;

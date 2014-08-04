@@ -105,8 +105,8 @@ void Problem::BuildProblem(Problem_Input* input)
 void Problem::Sweep(std::ofstream &output)
 {
 	// Timers
-	std::clock_t start = std::clock();
-	std::clock_t start_task;
+	double start = MPI_Wtime();
+	double start_task;
 	long double duration_task;
 
 	// PreAllocated incoming and outgoing face vectors;
@@ -126,7 +126,7 @@ void Problem::Sweep(std::ofstream &output)
 	for (; it != it_end; it++, task++)
 	{
 		target = 0;
-		start_task = std::clock();
+		start_task = MPI_Wtime();
 		// Number of cells in each direction in this cellset
 		int cells_x = subdomain.CellSets[(*it).cellset_id_loc].cells_x;
 		int cells_y = subdomain.CellSets[(*it).cellset_id_loc].cells_y;
@@ -484,12 +484,12 @@ void Problem::Sweep(std::ofstream &output)
 			}
 
 		}
-		duration_task = (std::clock() - start_task) / (double)CLOCKS_PER_SEC;
+		duration_task = (MPI_Wtime() - start_task); // / (double)CLOCKS_PER_SEC;
 		if (rank == 0){ 
 			output << "    Task: " << task << " duration = " << duration_task << " seconds." << std::endl;
 		}
 	} // tasks
-	long double duration = (std::clock() - start) / (double) CLOCKS_PER_SEC;
+	long double duration = (MPI_Wtime() - start); // / (double) CLOCKS_PER_SEC;
 
 	//std::cout << "  Rank: " << rank << " Sweep duration: " << duration << " seconds." << std::endl;
 	
