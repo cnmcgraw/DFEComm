@@ -160,10 +160,10 @@ void Problem::Sweep(std::ofstream &output)
 		// check to see if task has all required incident information
 		bool ready = false;
 		std::vector<bool> ready_face(3, false);
-		target = GetTarget((*it).angleset_id, (*it).groupset_id, (*it).cellset_id);
 		int flag, count;
 		MPI_Status status, status2;
 		MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &flag, &status);
+		target = GetTarget((*it).angleset_id, (*it).groupset_id, (*it).cellset_id);
 		if (flag == true)
 		{
 			// Check if the message is for this task
@@ -248,7 +248,6 @@ void Problem::Sweep(std::ofstream &output)
 			}
 		}
 		ready = (ready_face[0] && ready_face[1] && ready_face[2]);
-
 		// Keep receiving messages until we have all our incoming info
 		while (ready == false)
 		{
@@ -287,10 +286,10 @@ void Problem::Sweep(std::ofstream &output)
 				{
 					MPI_Get_count(&status, MPI_DOUBLE, &count);
 					MPI_Recv(&subdomain.Received_buffer[(recv)*subdomain.max_size], count, MPI_DOUBLE, status.MPI_SOURCE, status.MPI_TAG, MPI_COMM_WORLD, &status);
+					subdomain.Received_info[recv][0] = status.MPI_TAG;
+					subdomain.Received_info[recv][1] = status.MPI_SOURCE;
+					subdomain.Received_info[recv][2] = count;
 					recv++;
-					subdomain.Received_info[task][0] = status.MPI_TAG;
-					subdomain.Received_info[task][1] = status.MPI_SOURCE;
-					subdomain.Received_info[task][2] = count;
 				}
 			}
 			ready = (ready_face[0] && ready_face[1] && ready_face[2]);
@@ -598,5 +597,14 @@ void Problem::ZeroPhi()
 					subdomain.CellSets[i].Cells[j].phi[k] = 0;
 		}
 
+	}
+
+	for (int i = 0; i < subdomain.Received_buffer.size(); i++)
+		subdomain.Received_buffer[i] = 0;
+
+	for (int i = 0; i < subdomain.Received_info.size(); i++)
+	{
+		for (int j = 0; j < subdomain.Received_info[i].size(); j++)
+			subdomain.Received_info[i][j] = 0;
 	}
 }
