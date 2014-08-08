@@ -107,6 +107,7 @@ private:
 	std::vector<double> source;
 	Direction omega,facecenter;
 	double sigma_t, cell_average;
+	int num_tasks;
 
 	int GetCell(int, int, int, int, int, int, int);
 
