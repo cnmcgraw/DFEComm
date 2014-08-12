@@ -3,6 +3,7 @@
 #define Subdomain_h 1
 
 #include <vector>
+#include <queue>
 #include "CellSet.h"
 
 using std::vector;
@@ -32,9 +33,11 @@ public:
 	vector<double> X_buffer, X_Send_buffer;
 	vector<double> Y_buffer, Y_Send_buffer;
 	vector<double> Z_buffer, Z_Send_buffer;
+
 	// This hold not-yet-needed messages
 	vector<double> Received_buffer;
 	vector<vector<int> > Received_info;
+	std::queue<int> Received_open;
 	int max_size;
 
 	// Build all the cellsets this SML owns

@@ -113,7 +113,11 @@ private:
 
 	void GE_no_pivoting(std::vector<std::vector< double > >&, std::vector<double>&, int);
 
+	// Returns the Target of the messages being sent or received
 	unsigned int GetTarget(int, int, int);
+
+	// Gets the next open place is the Receive buffer
+	int GetPlacement();
 
 
 };

@@ -18,7 +18,7 @@ void Cell::BuildCell(int Local_ID, int CS_ID, Problem* problem)
 	ComputeCellID(Local_ID,CS_ID, problem);
 
 	// Set delta_x, delta_y, and delta_z from problem
-	// pin pitch = 12.0, total height = 350 cm
+	// pin pitch = 4.0, total height = 4 cm
 	delta_x = 4.0/(problem->refinement*2);
 	delta_y = 4.0/(problem->refinement*2);
 	delta_z = 4.0/problem->z_planes;

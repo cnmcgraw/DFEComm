@@ -6,6 +6,7 @@
 #include <math.h>
 #include <algorithm>
 #include <ctime>
+#include <deque>
 
 using std::vector;
 
@@ -104,32 +105,31 @@ void Problem::BuildProblem(Problem_Input* input)
 void Problem::Sweep(std::ofstream &output)
 {
 	// Timers
-	double start = MPI_Wtime();
 	double start_task;
 	long double duration_task;
 
-	// PreAllocated incoming and outgoing face vectors;
+	// Necessary temporary data structures for the sweep
 	std::vector<std::vector<int> > incoming(3, std::vector<int>(2,0));
 	std::vector<int> outgoing(3,0);
 	std::vector<int> cell_ijk(3, 0);
 	std::vector<double> temp_solve(4, 0);
 	Neighbor neighbor;
+	int task_it(0), recv(0), target(0);
+
+	// Request for sends and receives
 	MPI_Request sendrequest[3];
-	MPI_Request Request[3*num_tasks];
 	for (int i = 0; i < 3; i++)
 		sendrequest[i] = MPI_REQUEST_NULL;
+
+	MPI_Request Request[3 * num_tasks];
 	for (int i = 0; i < 3 * num_tasks; i++)
 		Request[i] = MPI_REQUEST_NULL;
-	std::vector<int> flags(3, 0);
-	
+
     // Loop through task list
 	std::vector<task>::iterator it = All_Tasks.begin();
 	std::vector<task>::iterator it_end = All_Tasks.end();
-	int task(0), recv(0);
-	int target;
-	for (; it != it_end; it++, task++)
+	for (; it != it_end; it++, task_it++)
 	{
-		target = 0;
 		start_task = MPI_Wtime();
 
 		// Get cellset and angleset information
@@ -161,8 +161,8 @@ void Problem::Sweep(std::ofstream &output)
 		// Check to see if task has all required incident information
 		bool ready = false;
 		std::vector<bool> ready_face(3, false);
-		int flag(1), count(0), old_message(1);
-		MPI_Status status, status2;
+		int flag, count;
+		MPI_Status status;
 
 		// First probe for any messages waiting to be received
 		MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &flag, &status);
@@ -170,11 +170,11 @@ void Problem::Sweep(std::ofstream &output)
 		while (flag)
 		{
 			MPI_Get_count(&status, MPI_DOUBLE, &count);
+			recv = GetPlacement();
 			MPI_Recv(&subdomain.Received_buffer[(recv)*subdomain.max_size], count, MPI_DOUBLE, status.MPI_SOURCE, status.MPI_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 			subdomain.Received_info[recv][0] = status.MPI_TAG;
 			subdomain.Received_info[recv][1] = status.MPI_SOURCE;
 			subdomain.Received_info[recv][2] = count;
-			recv++;
 
 			MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &flag, &status);
 		}
@@ -190,10 +190,12 @@ void Problem::Sweep(std::ofstream &output)
 		ready = (ready_face[0] && ready_face[1] && ready_face[2]);
 
 		// Check in Received buffer for info we already received
+		// If we find a matching message, we put its location in the 
+		// received buffer back in the queue of empty spots
 		if (!ready)
 		{
 			target = GetTarget((*it).angleset_id, (*it).groupset_id, (*it).cellset_id);
-			for (int inf = 0; inf < recv; inf++)
+			for (int inf = 0; inf < subdomain.Received_info.size(); inf++)
 			{
 				// Matching tags?
 				if (subdomain.Received_info[inf][0] == target)
@@ -207,18 +209,21 @@ void Problem::Sweep(std::ofstream &output)
 							{
 								std::vector<double>::iterator buf_it = subdomain.Received_buffer.begin() + inf*subdomain.max_size;
 								subdomain.X_buffer.assign(buf_it, buf_it + subdomain.Received_info[inf][2]);
+								subdomain.Received_open.push(inf);
 								ready_face[f] = true;
 							}
 							if (incoming[f][0] == 2 || incoming[f][0] == 3)
 							{
 								std::vector<double>::iterator buf_it = subdomain.Received_buffer.begin() + inf*subdomain.max_size;
 								subdomain.Y_buffer.assign(buf_it, buf_it + subdomain.Received_info[inf][2]);
+								subdomain.Received_open.push(inf);
 								ready_face[f] = true;
 							}
 							if (incoming[f][0] == 4 || incoming[f][0] == 5)
 							{
 								std::vector<double>::iterator buf_it = subdomain.Received_buffer.begin() + inf*subdomain.max_size;
 								subdomain.Z_buffer.assign(buf_it, buf_it + subdomain.Received_info[inf][2]);
+								subdomain.Received_open.push(inf);
 								ready_face[f] = true;
 							}
 						}
@@ -244,17 +249,17 @@ void Problem::Sweep(std::ofstream &output)
 							MPI_Get_count(&status, MPI_DOUBLE, &count);
 							if (incoming[f][0] == 0 || incoming[f][0] == 1)
 							{
-								MPI_Recv(&subdomain.X_buffer[0], count, MPI_DOUBLE, incoming[f][1], target, MPI_COMM_WORLD, &status2);
+								MPI_Recv(&subdomain.X_buffer[0], count, MPI_DOUBLE, incoming[f][1], target, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 								ready_face[f] = true;
 							}
 							if (incoming[f][0] == 2 || incoming[f][0] == 3)
 							{
-								MPI_Recv(&subdomain.Y_buffer[0], count, MPI_DOUBLE, incoming[f][1], target, MPI_COMM_WORLD, &status2);
+								MPI_Recv(&subdomain.Y_buffer[0], count, MPI_DOUBLE, incoming[f][1], target, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 								ready_face[f] = true;
 							}
 							if (incoming[f][0] == 4 || incoming[f][0] == 5)
 							{
-								MPI_Recv(&subdomain.Z_buffer[0], count, MPI_DOUBLE, incoming[f][1], target, MPI_COMM_WORLD, &status2);
+								MPI_Recv(&subdomain.Z_buffer[0], count, MPI_DOUBLE, incoming[f][1], target, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 								ready_face[f] = true;
 							}
 						}
@@ -264,11 +269,11 @@ void Problem::Sweep(std::ofstream &output)
 				else
 				{
 					MPI_Get_count(&status, MPI_DOUBLE, &count);
+					recv = GetPlacement();
 					MPI_Recv(&subdomain.Received_buffer[(recv)*subdomain.max_size], count, MPI_DOUBLE, status.MPI_SOURCE, status.MPI_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 					subdomain.Received_info[recv][0] = status.MPI_TAG;
 					subdomain.Received_info[recv][1] = status.MPI_SOURCE;
 					subdomain.Received_info[recv][2] = count;
-					recv++;
 				}
 			}
 			ready = (ready_face[0] && ready_face[1] && ready_face[2]);
@@ -378,7 +383,7 @@ void Problem::Sweep(std::ofstream &output)
 
 								bg[0] = cell_average + facecenter.x*bg[1] + facecenter.y*bg[2] + facecenter.z*bg[3];
 								// Now store outgoing fluxes in the buffer arrays
-								subdomain.Set_buffer(cell_ijk[0], cell_ijk[1], cell_ijk[2], g, m, outgoing[f], task, bg);
+								subdomain.Set_buffer(cell_ijk[0], cell_ijk[1], cell_ijk[2], g, m, outgoing[f], task_it, bg);
 							}
 						} //groups
 					} //angles
@@ -414,31 +419,28 @@ void Problem::Sweep(std::ofstream &output)
 				if (outgoing[f] == 0 || outgoing[f] == 1)
 				{
 					int size = cells_y*cells_z*group_per_groupset*angle_per_angleset * 4;
-					MPI_Isend(&subdomain.X_Send_buffer[task*subdomain.X_buffer.size()], size, MPI_DOUBLE, neighbor.SML, target, MPI_COMM_WORLD, &sendrequest[0]);
+					MPI_Isend(&subdomain.X_Send_buffer[0], size, MPI_DOUBLE, neighbor.SML, target, MPI_COMM_WORLD, &sendrequest[0]);
+
 				}
 				if (outgoing[f] == 2 || outgoing[f] == 3)
 				{
 					int size = cells_x*cells_z*group_per_groupset*angle_per_angleset * 4;
-					MPI_Isend(&subdomain.Y_Send_buffer[task*subdomain.Y_buffer.size()], size, MPI_DOUBLE, neighbor.SML, target, MPI_COMM_WORLD, &sendrequest[1]);
+					MPI_Isend(&subdomain.Y_Send_buffer[0], size, MPI_DOUBLE, neighbor.SML, target, MPI_COMM_WORLD, &sendrequest[1]);
+
 				}
 				if (outgoing[f] == 4 || outgoing[f] == 5)
 				{
 					int size = cells_x*cells_y*group_per_groupset*angle_per_angleset * 4;
-					MPI_Isend(&subdomain.Z_Send_buffer[task*subdomain.Z_buffer.size()], size, MPI_DOUBLE, neighbor.SML, target, MPI_COMM_WORLD, &sendrequest[2]);
-
+					MPI_Isend(&subdomain.Z_Send_buffer[0], size, MPI_DOUBLE, neighbor.SML, target, MPI_COMM_WORLD, &sendrequest[2]);
 				}
 			}
 
 		}
-		duration_task = (MPI_Wtime() - start_task); // / (double)CLOCKS_PER_SEC;
+		duration_task = (MPI_Wtime() - start_task); 
 		if (rank == 0){ 
-			output << "    Task: " << task << " duration = " << duration_task << " seconds." << std::endl;
+			output << "    Task: " << task_it << " duration = " << duration_task << " seconds." << std::endl;
 		}
 	} // tasks
-	long double duration = (MPI_Wtime() - start); // / (double) CLOCKS_PER_SEC;
-
-	//std::cout << "  Rank: " << rank << " Sweep duration: " << duration << " seconds." << std::endl;
-	
 	////Printing out Phi
 	//if (rank == 0)
 	//{
@@ -528,6 +530,26 @@ unsigned int Problem::GetTarget(int as, int gs, int cs)
 	unsigned int target;
 	target = cs + 1000 * gs + pow(1000,2) * as + pow(1000,3);
 	return target;
+}
+
+int Problem::GetPlacement()
+{
+	// If the Receive buffer is full, we need to allocate more space and add its 
+	// location to the queue
+	if (subdomain.Received_open.empty())
+	{
+		std::cout << "The queue is empty" << std::endl;
+		int size = subdomain.Received_buffer.size();
+		int size_info = subdomain.Received_info.size();
+		subdomain.Received_buffer.resize(size + subdomain.max_size);
+		subdomain.Received_info.resize(size_info + 1, std::vector<int>(3, 0));
+		subdomain.Received_open.push(size_info + 1);
+	}
+
+	// Now we pick out the first element of the queue
+	int location = subdomain.Received_open.front();
+	subdomain.Received_open.pop();
+	return location;
 }
 
 void Problem::ZeroPhi()
