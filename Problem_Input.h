@@ -47,9 +47,8 @@ public:
 	int num_groups, num_groupsets;
 
 	// Partitioning Data
-	// Number of Shared Memory Locations and
-	// Number of Threads per Shared Memory Location
-	int num_SML, num_TpSML;
+	// Number of Shared Memory Locations
+	int num_SML;
 
 	// Partition type: Options are KBA, Hybrid-KBA, Volumetric, or function
 	// If function, more parameters are needed

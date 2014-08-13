@@ -44,7 +44,6 @@ void Problem::BuildProblem(Problem_Input* input)
 
 	// Getting Partition parameters from the input
 	num_SML = input->num_SML;
-	num_TpSML = input->num_TpSML;
 	partition_type = input->partition_type;
 	partition_function = input->partition_function;
 	overload = input->overload;
@@ -528,7 +527,7 @@ unsigned int Problem::GetTarget(int as, int gs, int cs)
 	// and the number of groupsets and cellsets are both less than 1,000
 
 	unsigned int target;
-	target = cs + 1000 * gs + pow(1000,2) * as + pow(1000,3);
+	target = (unsigned int)( cs + 1000 * gs + pow(1000,2) * as + pow(1000,3) );
 	return target;
 }
 

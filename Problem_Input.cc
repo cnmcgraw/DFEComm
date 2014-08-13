@@ -106,8 +106,6 @@ void Problem_Input::ProcessInput(std::ifstream& input, std::ofstream& fout)
 					//Partitioning Data
 					if (inpL[0] == "num_SML")
 						num_SML = atoi(inpL[2].c_str());
-					if (inpL[0] == "num_TpSML")
-						num_TpSML = atoi(inpL[2].c_str());
 				}
 			}
 		}while (getline(input,line,'\n') );
@@ -389,8 +387,8 @@ std::vector<int> Problem_Input::FactorSMLCount()
 
 	if (fmod(sqrt(num_SML / 2), 1) == 0)
 	{
-		SMLCounts[0] = sqrt(num_SML / 2);
-		SMLCounts[1] = sqrt(num_SML / 2);
+		SMLCounts[0] = (int)sqrt(num_SML / 2);
+		SMLCounts[1] = (int)sqrt(num_SML / 2);
 		return SMLCounts;
 	}
 	// else find the biggest factor (closest to the sqrt root)

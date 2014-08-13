@@ -293,7 +293,7 @@ void CellSet::GetNeighborsSML(int CS_ID, Problem* problem)
 			{
 				// Round Robin
 				if(problem->partition_function[j] == 1)
-					p[j] = floor(neighborijk[j]/problem->overload[j]);
+					p[j] = (int)floor(neighborijk[j]/problem->overload[j]);
 				// Blocked
 				else
 					p[j] = neighborijk[j] % (num_cellsets[j]/problem->overload[j]);
@@ -313,4 +313,3 @@ void CellSet::SetBoundaryFlux(int boundary, int angleset, int groupset, std::vec
 	for (int i = 0; i < buffer.size(); i++)
 		BoundaryFlux[boundary][groupset*num_angleset*buffer.size() + angleset*buffer.size() + i] = buffer[i];
 }
-

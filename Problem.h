@@ -73,7 +73,7 @@ public:
 	int num_groupsets, group_per_groupset;
 
 	// Partitioning Data
-	int num_SML, num_TpSML;
+	int num_SML;
 	int partition_type;
 	std::vector< int > partition_function, overload, num_cellsets;
 	int sched_type;
