@@ -137,16 +137,17 @@ void Subdomain::AllocateBuffers(int num_tasks)
 
 	// num_tasks will always be an even number (due to symmetry requirements of the quadrature)
 	// so dividing it by 2 will always produce an integer.
-	Received_buffer.resize(3 * max_size * num_tasks / 2);
+	Received_buffer.resize(max_size * num_tasks);
 
 	// Vector of (tag, source, count)'s
-	Received_info.resize(3*num_tasks/2, std::vector<int>(3,0));
+	Received_info.resize(num_tasks, std::vector<int>(3,0));
 
 	// This is a queue of open places int the Recieved buffer. At first it will contain the location
 	// for every chunk. As the buffer gets filled, the queue will shrink. When chunks in the Received
 	// buffer get used, their location gets put back in the queue for reuse. If there are no open locations
 	// left in the queue, the Received buffer will be resized.
-	for (int i = 0; i < 3 * num_tasks / 2; i++)
+	Received_open = std::queue<int>();
+	for (int i = 0; i < num_tasks; i++)
 		Received_open.push(i);
 
 
@@ -157,7 +158,6 @@ void Subdomain::Set_buffer(int cell_x, int cell_y, int cell_z, int group, int an
 	{
 		for (int i = 0; i < 4; i++)
 		{
-			//X_Send_buffer[task*X_buffer.size() + cell_y*cells_z*group_per_groupset*angle_per_angleset * 4 + cell_z*group_per_groupset*angle_per_angleset * 4 + group*angle_per_angleset * 4 + angle * 4 + i] = RHS[i];
 			X_Send_buffer[cell_y*cells_z*group_per_groupset*angle_per_angleset * 4 + cell_z*group_per_groupset*angle_per_angleset * 4 + group*angle_per_angleset * 4 + angle * 4 + i] = RHS[i];
 		}
 	}
@@ -165,7 +165,6 @@ void Subdomain::Set_buffer(int cell_x, int cell_y, int cell_z, int group, int an
 	{
 		for (int i = 0; i < 4; i++)
 		{
-			//Y_Send_buffer[task*Y_buffer.size() + cell_x*cells_z*group_per_groupset*angle_per_angleset * 4 + cell_z*group_per_groupset*angle_per_angleset * 4 + group*angle_per_angleset * 4 + angle * 4 + i] = RHS[i];
 			Y_Send_buffer[cell_x*cells_z*group_per_groupset*angle_per_angleset * 4 + cell_z*group_per_groupset*angle_per_angleset * 4 + group*angle_per_angleset * 4 + angle * 4 + i] = RHS[i];
 		}
 	}
@@ -173,7 +172,6 @@ void Subdomain::Set_buffer(int cell_x, int cell_y, int cell_z, int group, int an
 	{
 		for (int i = 0; i < 4; i++)
 		{
-			//Z_Send_buffer[task*Z_buffer.size() + cell_x*cells_y*group_per_groupset*angle_per_angleset * 4 + cell_y*group_per_groupset*angle_per_angleset * 4 + group*angle_per_angleset * 4 + angle * 4 + i] = RHS[i];
 			Z_Send_buffer[cell_x*cells_y*group_per_groupset*angle_per_angleset * 4 + cell_y*group_per_groupset*angle_per_angleset * 4 + group*angle_per_angleset * 4 + angle * 4 + i] = RHS[i];
 		}
 	}

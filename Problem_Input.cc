@@ -96,7 +96,7 @@ void Problem_Input::ProcessInput(std::ifstream& input, std::ofstream& fout)
 							partition_type = atoi(inpL[2].c_str());
 
 						GetPartitionParameters();
-
+						sched_type = 1;
 						if (inpL[0] == "sched_type")
 							sched_type = atoi(inpL[2].c_str());
 						if (inpL[0] == "num_sweeps")
@@ -123,6 +123,9 @@ void Problem_Input::GetPartitionParameters()
 {
 	// Default is KBA (Hybrid for num_SML>1) with overloading of 1
 	if(partition_type == 0){
+		partition_function[0] = 2;
+		partition_function[1] = 2;
+		partition_function[2] = 2;
 		if (num_SML == 1)
 		{
 			num_cellsets[0] = (int)sqrt(num_SML);
@@ -147,6 +150,9 @@ void Problem_Input::GetPartitionParameters()
 		if(inpL[0] == "overload")
 			overload[0] = atoi( inpL[2].c_str() );
 
+		partition_function[0] = 2;
+		partition_function[1] = 2;
+		partition_function[2] = 2;
 		num_cellsets[0] = (int)sqrt(num_SML)/overload[0];
 		num_cellsets[1] = (int)sqrt(num_SML)/overload[0];
 		num_cellsets[2] = z_planes;
@@ -158,7 +164,9 @@ void Problem_Input::GetPartitionParameters()
 	if(partition_type == 2){
 		if(inpL[0] == "overload")
 			overload[0] = atoi( inpL[2].c_str() );
-
+		partition_function[0] = 2;
+		partition_function[1] = 2;
+		partition_function[2] = 2;
 		num_cellsets[0] = (int)sqrt(num_SML/2)/overload[0];
 		num_cellsets[1] = (int)sqrt(num_SML/2)/overload[0];
 		num_cellsets[2] = z_planes/2;

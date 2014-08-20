@@ -411,6 +411,23 @@ void Problem::Sweep(std::ofstream &output)
 					subdomain.CellSets[(*it).cellset_id_loc].SetBoundaryFlux(outgoing[f], (*it).angleset_id, (*it).groupset_id, subdomain.Z_buffer);
 				}
 			}
+			else if (neighbor.SML == rank && neighbor.id > 0)
+			{
+				int place = GetPlacement();
+				target = GetTarget((*it).angleset_id, (*it).groupset_id, neighbor.id);
+				int size;
+				if (outgoing[f] == 0 || outgoing[f] == 1)
+					size = subdomain.X_buffer.size();
+				if (outgoing[f] == 2 || outgoing[f] == 3)
+					size = subdomain.Y_buffer.size();
+				if (outgoing[f] == 4 || outgoing[f] == 5)
+					size = subdomain.Z_buffer.size();
+				std::vector<double>::iterator buf_it = subdomain.Received_buffer.begin() + place*subdomain.max_size;
+				subdomain.Received_buffer.assign(buf_it, buf_it + size);
+				subdomain.Received_info[place][0] = target;
+				subdomain.Received_info[place][1] = rank;
+				subdomain.Received_info[place][2] = size;
+			}
 			// Otherwise, send an mpi message to neighbor.SML
 			else
 			{
@@ -436,9 +453,9 @@ void Problem::Sweep(std::ofstream &output)
 
 		}
 		duration_task = (MPI_Wtime() - start_task); 
-		if (rank == 0){ 
-			output << "    Task: " << task_it << " duration = " << duration_task << " seconds." << std::endl;
-		}
+	//	if (rank == 0){ 
+	//		output << "    Task: " << task_it << " duration = " << duration_task << " seconds." << std::endl;
+	//	}
 	} // tasks
 	////Printing out Phi
 	//if (rank == 0)
@@ -537,14 +554,14 @@ int Problem::GetPlacement()
 	// location to the queue
 	if (subdomain.Received_open.empty())
 	{
-		std::cout << "The queue is empty" << std::endl;
+		std::cout << "Rank " << rank << " The queue is empty" << std::endl;
 		int size = subdomain.Received_buffer.size();
 		int size_info = subdomain.Received_info.size();
 		subdomain.Received_buffer.resize(size + subdomain.max_size);
 		subdomain.Received_info.resize(size_info + 1, std::vector<int>(3, 0));
-		subdomain.Received_open.push(size_info + 1);
+		subdomain.Received_open.push(size_info);
 	}
-
+	
 	// Now we pick out the first element of the queue
 	int location = subdomain.Received_open.front();
 	subdomain.Received_open.pop();
@@ -566,6 +583,7 @@ void Problem::ZeroPhi()
 
 	}
 
+	subdomain.AllocateBuffers(num_tasks);
 	for (int i = 0; i < subdomain.Received_buffer.size(); i++)
 		subdomain.Received_buffer[i] = 0;
 
