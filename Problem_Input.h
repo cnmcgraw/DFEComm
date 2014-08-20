@@ -54,7 +54,7 @@ public:
 	// If function, more parameters are needed
 	int partition_type;
 
-	// Partition function can be round robin or blocked in each dimension
+	// Partition function can be blocked (1) or round robin (2) in each dimension
 	// Overload = number of cellsets per processor in each dimension
 	// Num_cellsets = total number of cellsets in each dimension
 	// Num_cellsets/Overload should be the number of SML in each dimension

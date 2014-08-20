@@ -123,9 +123,6 @@ void Problem_Input::GetPartitionParameters()
 {
 	// Default is KBA (Hybrid for num_SML>1) with overloading of 1
 	if(partition_type == 0){
-		partition_function[0] = 2;
-		partition_function[1] = 2;
-		partition_function[2] = 2;
 		if (num_SML == 1)
 		{
 			num_cellsets[0] = (int)sqrt(num_SML);
@@ -150,9 +147,6 @@ void Problem_Input::GetPartitionParameters()
 		if(inpL[0] == "overload")
 			overload[0] = atoi( inpL[2].c_str() );
 
-		partition_function[0] = 2;
-		partition_function[1] = 2;
-		partition_function[2] = 2;
 		num_cellsets[0] = (int)sqrt(num_SML)/overload[0];
 		num_cellsets[1] = (int)sqrt(num_SML)/overload[0];
 		num_cellsets[2] = z_planes;
@@ -164,9 +158,7 @@ void Problem_Input::GetPartitionParameters()
 	if(partition_type == 2){
 		if(inpL[0] == "overload")
 			overload[0] = atoi( inpL[2].c_str() );
-		partition_function[0] = 2;
-		partition_function[1] = 2;
-		partition_function[2] = 2;
+
 		num_cellsets[0] = (int)sqrt(num_SML/2)/overload[0];
 		num_cellsets[1] = (int)sqrt(num_SML/2)/overload[0];
 		num_cellsets[2] = z_planes/2;
@@ -256,11 +248,12 @@ void Problem_Input::DefineProblem()
 		num_groupsets = 1;
 
 		// Spatial Data
-		// A cellset = 1 pincell which is 2x2x10 cells
+		// A process owns 1 pincell which is 2x2x10 cells
 		refinement = 1;
 		pin_x = num_cellsets[0];
 		pin_y = num_cellsets[1];
 		z_planes = 10*num_cellsets[2];
+		overload[2] = 10;
 	}
 	// Small Problem
 	else if (problem_size == 2)
@@ -275,11 +268,12 @@ void Problem_Input::DefineProblem()
 		num_groupsets = 1;
 
 		// Spatial Data
-		// A cellset = 1 pincell which is 10x10x100 cells
+		// A process owns 1 pincell which is 10x10x100 cells
 		refinement = 5;
 		pin_x = num_cellsets[0];
 		pin_y = num_cellsets[1];
 		z_planes = 100 * num_cellsets[2];
+		overload[2] = 100;
 	}
 	// Medium Problem
 	else if (problem_size == 3)
@@ -294,11 +288,12 @@ void Problem_Input::DefineProblem()
 		num_groupsets = 1;
 
 		// Spatial Data
-		// A cellset = 1 pincell which is 10x10x200 cells
+		// A process owns 1 pincell which is 10x10x200 cells
 		refinement = 5;
 		pin_x = num_cellsets[0];
 		pin_y = num_cellsets[1];
-		z_planes = 100 * num_cellsets[2];
+		z_planes = 200 * num_cellsets[2];
+		overload[2] = 200;
 	}
 	// Large Problem - This should test the limits of an SML
 	else if (problem_size == 4)
@@ -313,11 +308,12 @@ void Problem_Input::DefineProblem()
 		num_groupsets = 1;
 
 		// Spatial Data
-		// A cellset = 1 pincell which is 10x10x200 cells
+		// A process owns  1 pincell which is 10x10x200 cells
 		refinement = 5;
 		pin_x = num_cellsets[0];
 		pin_y = num_cellsets[1];
 		z_planes = 200 * num_cellsets[2];
+		overload[2] = 200;
 	}
 }
 void Problem_Input::CheckProblemInput()
