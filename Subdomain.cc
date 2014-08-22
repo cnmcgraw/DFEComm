@@ -137,17 +137,17 @@ void Subdomain::AllocateBuffers(int num_tasks)
 
 	// num_tasks will always be an even number (due to symmetry requirements of the quadrature)
 	// so dividing it by 2 will always produce an integer.
-	Received_buffer.resize(max_size * num_tasks);
+	Received_buffer.resize(max_size * num_tasks / 2);
 
 	// Vector of (tag, source, count)'s
-	Received_info.resize(num_tasks, std::vector<int>(3,0));
+	Received_info.resize(num_tasks / 2, std::vector<int>(3,0));
 
 	// This is a queue of open places int the Recieved buffer. At first it will contain the location
 	// for every chunk. As the buffer gets filled, the queue will shrink. When chunks in the Received
 	// buffer get used, their location gets put back in the queue for reuse. If there are no open locations
 	// left in the queue, the Received buffer will be resized.
 	Received_open = std::queue<int>();
-	for (int i = 0; i < num_tasks; i++)
+	for (int i = 0; i < num_tasks / 2; i++)
 		Received_open.push(i);
 
 

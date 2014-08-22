@@ -13,7 +13,7 @@ DEPFLAGS	= -Y -f $(DEPFILE) -s $(DEPTOKEN) -p
  OBJS_O	= $(foreach obj, $(OBJS), $(obj) )
 
  all: depend $(SRCS)
-	$(MPICC) $(CFLAGS) $(DFLAGS) $(SRCS)
+	$(MPICC) -o DFEComm $(CFLAGS) $(DFLAGS) $(SRCS)
 	
  depend:
 	rm -f $(DEPFILE)
@@ -27,7 +27,7 @@ DEPFLAGS	= -Y -f $(DEPFILE) -s $(DEPTOKEN) -p
  
  clean:
 	rm -f $(DEPFILE)
-	rm a.out
+	rm DFEComm
 
  # put this file in the last line of your Makefile
  sinclude $(DEPFILE)

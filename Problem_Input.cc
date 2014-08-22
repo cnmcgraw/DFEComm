@@ -154,7 +154,7 @@ void Problem_Input::GetPartitionParameters()
 		overload[2] = z_planes;
 
 	}
-	// Hybrid KBA ( Py = 2 (2D), Pz = 2 (3D) )
+	// Hybrid KBA ( Pz = 2 )
 	if(partition_type == 2){
 		if(inpL[0] == "overload")
 			overload[0] = atoi( inpL[2].c_str() );

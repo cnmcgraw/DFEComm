@@ -1,8 +1,5 @@
 problem_size = 2
-
-num_SML = 2
-num_TpSML = 1 
-
+num_SML = 8
 num_sweeps = 5
 	
 	

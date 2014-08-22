@@ -231,6 +231,20 @@ void Problem::Sweep(std::ofstream &output)
 			}
 		}
 		ready = (ready_face[0] && ready_face[1] && ready_face[2]);
+
+		if (rank == 1)
+		{
+			if (!ready)
+			{
+				std::cout << "Am I ready? " << ready << ": " << ready_face[0] << " " << ready_face[1] << " " << ready_face[2] << std::endl;
+				std::cout << "I'm looking for: " << target << " from: " << incoming[0][1] << " " << incoming[1][1] << " " << incoming[2][1] << std::endl;
+				std::cout << "I received: " << std::endl;
+				for (int inf = 0; inf < subdomain.Received_info.size(); inf++)
+				{
+					std::cout << "tag: " << subdomain.Received_info[inf][0] << " and source: " << subdomain.Received_info[inf][1] << std::endl;
+				}
+			}
+		}
 		// Keep receiving messages until we have all our incoming info
 		while (ready == false)
 		{
@@ -417,13 +431,20 @@ void Problem::Sweep(std::ofstream &output)
 				target = GetTarget((*it).angleset_id, (*it).groupset_id, neighbor.id);
 				int size;
 				if (outgoing[f] == 0 || outgoing[f] == 1)
-					size = subdomain.X_buffer.size();
+				{
+					for (int a = 0; a < subdomain.X_buffer.size(); a++)
+						subdomain.Received_buffer[a + place*subdomain.max_size] = subdomain.X_buffer[a];
+				}
 				if (outgoing[f] == 2 || outgoing[f] == 3)
-					size = subdomain.Y_buffer.size();
+				{
+					for (int a = 0; a < subdomain.Y_buffer.size(); a++)
+						subdomain.Received_buffer[a + place*subdomain.max_size] = subdomain.Y_buffer[a];
+				}
 				if (outgoing[f] == 4 || outgoing[f] == 5)
-					size = subdomain.Z_buffer.size();
-				std::vector<double>::iterator buf_it = subdomain.Received_buffer.begin() + place*subdomain.max_size;
-				subdomain.Received_buffer.assign(buf_it, buf_it + size);
+				{
+					for (int a = 0; a < subdomain.Z_buffer.size(); a++)
+						subdomain.Received_buffer[a + place*subdomain.max_size] = subdomain.Z_buffer[a];
+				}
 				subdomain.Received_info[place][0] = target;
 				subdomain.Received_info[place][1] = rank;
 				subdomain.Received_info[place][2] = size;
@@ -457,6 +478,7 @@ void Problem::Sweep(std::ofstream &output)
 	//		output << "    Task: " << task_it << " duration = " << duration_task << " seconds." << std::endl;
 	//	}
 	} // tasks
+
 	////Printing out Phi
 	//if (rank == 0)
 	//{

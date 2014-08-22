@@ -1,38 +1,35 @@
 # Space
 pin_x = 1
 pin_y = 1
-z_planes = 2
-refinement = 1
-grid_type = 1
+refinement = 8
+z_planes = 32
 bc = 2
-spatial_discretization = 1
 
 # Angle
-num_polar = 2
-num_azim = 4
-angle_aggregation = 2
+num_polar = 10
+num_azim = 8
+angle_aggregation = 3
 
 # Energy
-num_groups = 100
-num_groupsets = 2	
+num_groups = 1
+num_groupsets = 1
 
 # Partitioning
-num_SML = 1
-num_TpSML = 1 
+num_SML = 2
 partition_type = 6
+
 func_x = 1
-overload_x = 2
-num_cellsets_x = 2
+overload_x = 1
+num_cellsets_x = 1
+
 func_y = 1
-overload_y = 2
-num_cellsets_y = 2
+overload_y = 1
+num_cellsets_y = 1
+
 func_z = 1
-overload_z = 1
-num_cellsets_z = 1
+overload_z = 2
+num_cellsets_z = 4
 
-# Scheduling
-sched_type = 1
-
-num_sweeps = 5
+num_sweeps = 3
 	
 	

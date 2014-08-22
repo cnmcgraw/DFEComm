@@ -292,7 +292,7 @@ void CellSet::GetNeighborsSML(int CS_ID, Problem* problem)
 			for(int j = 0; j < 3; j++)
 			{
 				// Round Robin
-				if(problem->partition_function[j] == 1)
+				if(problem->partition_function[j] == 2)
 					p[j] = (int)floor(neighborijk[j]/problem->overload[j]);
 				// Blocked
 				else
