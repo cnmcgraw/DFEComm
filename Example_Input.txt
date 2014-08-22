@@ -27,9 +27,9 @@ overload_y = 1
 num_cellsets_y = 1
 
 func_z = 1
-overload_z = 2
-num_cellsets_z = 4
+overload_z = 1
+num_cellsets_z = 2
 
-num_sweeps = 3
+num_sweeps = 10
 	
 	

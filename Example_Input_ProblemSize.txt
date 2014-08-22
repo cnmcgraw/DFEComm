@@ -1,5 +1,5 @@
-problem_size = 2
-num_SML = 8
+problem_size = 1
+num_SML = 2
 num_sweeps = 5
 	
 	

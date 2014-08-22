@@ -131,11 +131,11 @@ DFEComm is available for download on GitHub. To clone the repository on GitHub:
 \begin{verbatim}
 >$ git clone https://github.com/cnmcgraw/DFEComm.git
 \end{verbatim}
-Once cloned, the code can be updated to the newest version using the following command (when in the DFEComm directory):
+Once cloned, the code can be updated to the newest version using the following command (when in the DFE\_Comm directory):
 \begin{verbatim}
 >$ git pull
 \end{verbatim}
-  DFEComm is built upon MPI and has been tested using mpi++ as its compiler. To compile DFEComm, use the following command:
+ DFEComm is built upon MPI and has been tested using mpi++ as its compiler. To compile DFEComm, use the following command:
 \begin{verbatim}
 >$ make
 \end{verbatim}
@@ -181,7 +181,7 @@ The input file is a text file with a listing of case sensitive keywords separate
 \end{center}
 \end{table}
 
-An example of the most verbose form of the input file can be seen in Figure \ref{fig::verbose}. This form allows the user complete control over the definition of their problem. This example defines a problem with 2 cellsets, each with a 16x16x16 mesh layout. Each of the two SMLs specified have one cellset. There are 80 total angles, and octant aggregation is used. There is one groupset, with one energy group. Finally, 10 sweeps will be performed and the average time per sweep will be reported. This example is found in \emph{Example\_Verbose\_Input.txt} in the DFEComm folder.\\
+An example of the most verbose form of the input file can be seen in Figure \ref{fig::verbose}. This form allows the user complete control over the definition of their problem. This example defines a problem with 2 cellsets, each with a 16x16x16 mesh layout. Each of the two SMLs specified have one cellset. There are 80 total angles, and octant aggregation is used. There is one groupset, with one energy group. Finally, 10 sweeps will be performed and the average time per sweep will be reported. This example is found in \emph{Example\_Input.txt} in the DFEComm folder.\\
 \begin{figure}[H]
 \begin{verbatim}
 # Space
@@ -219,7 +219,7 @@ num_sweeps = 10
   \caption[]{Example Verbose Input File}\label{fig::verbose}
 \end{figure}
 
-On the other end the spectrum, a much simpler form of the input can be seen in Figure \ref{fig::simplified}. This form is intended to allow the user to define a problem using the least amount of keywords. DFEComm has as a collection of preset problems which are defined per SML, specified with only one keyword, \emph{problem\_size}. The specifics of these predefined problems are detailed in the next section. For this input format, only the number of SMLs and the number of sweeps to perform are further required. DFEComm uses the auto-partitioning function and hybrid-KBA to divide the mesh among the SMLs. This example input is found in \emph{Example\_Simple\_Input.txt} in the DFEComm folder.\\
+On the other end the spectrum, a much simpler form of the input can be seen in Figure \ref{fig::simplified}. This form is intended to allow the user to define a problem using the least amount of keywords. DFEComm has as a collection of preset problems which are defined per SML, specified with only one keyword, \emph{problem\_size}. The specifics of these predefined problems are detailed in the next section. For this input format, only the number of SMLs and the number of sweeps to perform are further required. DFEComm uses the auto-partitioning function and hybrid-KBA to divide the mesh among the SMLs. This example input is found in \emph{Example\_Input\_ProblemSize.txt} in the DFEComm folder.\\
 
 \begin{figure}[H]
 \begin{verbatim}
