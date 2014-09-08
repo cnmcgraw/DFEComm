@@ -62,10 +62,10 @@ void Problem_Input::ProcessInput(std::ifstream& input, std::ofstream& fout)
 					if (problem_size == 0)
 					{	
 						//Spatial Data
-						if (inpL[0] == "pin_x")
-							pin_x = atoi(inpL[2].c_str());
-						if (inpL[0] == "pin_y")
-							pin_y = atoi(inpL[2].c_str());
+						if (inpL[0] == "num_pin_x")
+							num_pin_x = atoi(inpL[2].c_str());
+						if (inpL[0] == "num_pin_y")
+							num_pin_y = atoi(inpL[2].c_str());
 						if (inpL[0] == "z_planes")
 							z_planes = atoi(inpL[2].c_str());
 						if (inpL[0] == "refinement")
@@ -250,8 +250,8 @@ void Problem_Input::DefineProblem()
 		// Spatial Data
 		// A process owns 1 pincell which is 2x2x10 cells
 		refinement = 1;
-		pin_x = num_cellsets[0];
-		pin_y = num_cellsets[1];
+		num_pin_x = num_cellsets[0];
+		num_pin_y = num_cellsets[1];
 		z_planes = 10*num_cellsets[2];
 		overload[2] = 10;
 	}
@@ -270,8 +270,8 @@ void Problem_Input::DefineProblem()
 		// Spatial Data
 		// A process owns 1 pincell which is 10x10x100 cells
 		refinement = 5;
-		pin_x = num_cellsets[0];
-		pin_y = num_cellsets[1];
+		num_pin_x = num_cellsets[0];
+		num_pin_y = num_cellsets[1];
 		z_planes = 100 * num_cellsets[2];
 		overload[2] = 100;
 	}
@@ -290,8 +290,8 @@ void Problem_Input::DefineProblem()
 		// Spatial Data
 		// A process owns 1 pincell which is 10x10x200 cells
 		refinement = 5;
-		pin_x = num_cellsets[0];
-		pin_y = num_cellsets[1];
+		num_pin_x = num_cellsets[0];
+		num_pin_y = num_cellsets[1];
 		z_planes = 200 * num_cellsets[2];
 		overload[2] = 200;
 	}
@@ -310,8 +310,8 @@ void Problem_Input::DefineProblem()
 		// Spatial Data
 		// A process owns  1 pincell which is 10x10x200 cells
 		refinement = 5;
-		pin_x = num_cellsets[0];
-		pin_y = num_cellsets[1];
+		num_pin_x = num_cellsets[0];
+		num_pin_y = num_cellsets[1];
 		z_planes = 200 * num_cellsets[2];
 		overload[2] = 200;
 	}
@@ -319,11 +319,11 @@ void Problem_Input::DefineProblem()
 void Problem_Input::CheckProblemInput()
 {
 	// Check that spatial aggregation is integer multiple of 1/4 pin cells
-	if(!(2*pin_x/num_cellsets[0] == (int)2*pin_x/num_cellsets[0])){
+	if(!(2*num_pin_x/num_cellsets[0] == (int)2*num_pin_x/num_cellsets[0])){
 		if (rank == 0){ std::cout << "Invalid Partition in x" << std::endl; }
 		MPI_Abort(MPI_COMM_WORLD,1);
 	}
-	if(!(2*pin_y/num_cellsets[1] == (int)2*pin_y/num_cellsets[1])){
+	if(!(2*num_pin_y/num_cellsets[1] == (int)2*num_pin_y/num_cellsets[1])){
 		if (rank == 0){ std::cout << "Invalid Partition in y" << std::endl; }
 		MPI_Abort(MPI_COMM_WORLD,1);
 	}

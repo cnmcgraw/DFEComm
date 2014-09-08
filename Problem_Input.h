@@ -18,7 +18,7 @@ public:
 	int problem_size;
 	// Spatial Data 
 	// Number of pins in x and y
-	int pin_x, pin_y;
+	int num_pin_x, num_pin_y;
 
 	// Number of planes in the z dimension (will be 1 for 2D problem)
 	int z_planes;

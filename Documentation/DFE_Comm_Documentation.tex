@@ -157,8 +157,8 @@ The input file is a text file with a listing of case sensitive keywords separate
     Parameter & \multicolumn{1}{c|}{Allowed}&Value& \multicolumn{1}{c|}{Definition}\\
     \hline
     problem\_size & 0,1,2,3,4 & 0& Predefined Problem Size per SML\\  \hline
-    pin\_x& Positive Integer & None &  Number of fuel pins in the x-dimension\\ 
-    pin\_y& Positive Integer & None &  Number of fuel pins in the y-dimension\\
+    num\_pin\_x& Positive Integer & None &  Number of fuel pins in the x-dimension\\ 
+    num\_pin\_y& Positive Integer & None &  Number of fuel pins in the y-dimension\\
     refinement & Positive Integer & None & Number of `rings' in each fuel pin \\
     z\_planes& Positive Integer & None &  Number of mesh cells in the z-dimension\\ 
     bc & 1,2 & 2 & Boundary Conditions, 1 = Reflecting, 2 = Incident Flux \\ \hline
@@ -185,8 +185,8 @@ An example of the most verbose form of the input file can be seen in Figure \ref
 \begin{figure}[H]
 \begin{verbatim}
 # Space
-pin_x = 1
-pin_y = 1
+num_pin_x = 1
+num_pin_y = 1
 refinement = 8
 z_planes = 32
 bc = 2
@@ -236,8 +236,8 @@ An example of an input using one of the predefined partitioning schemes in seen 
 \begin{figure}[htbp]
 \begin{verbatim}
 # Space
-pin_x = 1
-pin_y = 1
+num_pin_x = 1
+num_pin_y = 1
 refinement = 8
 z_planes = 32
 bc = 2
@@ -263,14 +263,14 @@ num_sweeps = 10
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection{Pre-defined Problems} \label{probdef}
-Four predefined problems are available in DFEComm to enable weak scaling studies. Each problem size, defined in Table \ref{table::probsize}, is defined per SML. The angular quadrature is aggregated by octant, and the energy groups are aggregated into one groupset. Currently, the spatial mesh is aggregated into one cellset. This will be optimized in future versions of DFEComm. The largest of these problems (4), is intended to test the limits of the machine DFEComm is run on. It is also meant to be extended to an on-node mini-app in which the quadrature and energy groups are split up over threads on a SML.\\ \newline
+Four predefined problems are available in DFEComm to enable weak scaling studies. Each problem size, defined in Table \ref{table::probsize}, is defined per SML. The angular quadrature is aggregated by octant, and the energy groups are aggregated into one groupset. Currently, the spatial mesh is aggregated into one cellset per SML. This will be optimized in future versions of DFEComm. The largest of these problems (4), is intended to test the limits of the machine DFEComm is run on. It is also meant to be extended to an on-node mini-app in which the quadrature and energy groups are split up over threads on a SML.\\ \newline
 
 \begin{table}[H]
 \begin{center}
   \begin{tabular}{ |c| c | c|c| c|}
     \hline
     Problem & Spatial & Quadrature& Number of & Unknowns per \\ 
-    Size ID & Size& (\# Polar $\times$ \# Azimuthal) &  Energy Groups & Task per SML\\
+    Size ID & Mesh& (\# Polar $\times$ \# Azimuthal) &  Energy Groups & Task per SML\\
     \hline
     1 & 2 x 2 x 10 & 4 x 4 & 10 & 800\\ 
     2 & 10 x 10 x 100 & 4 x 16 & 50& 4M\\

@@ -19,8 +19,8 @@ void CellSet::BuildCellSet(int CS_ID, Problem* problem)
 	{
 		num_cellsets[i] = problem->num_cellsets[i];
 	}
-	cells_x = 2*problem->pin_x*problem->refinement/num_cellsets[0];
-	cells_y = 2*problem->pin_y*problem->refinement/num_cellsets[1];
+	cells_x = 2*problem->num_pin_x*problem->refinement/num_cellsets[0];
+	cells_y = 2*problem->num_pin_y*problem->refinement/num_cellsets[1];
 	cells_z = problem->z_planes/num_cellsets[2];
 
 	num_groupset = problem->num_groupsets;

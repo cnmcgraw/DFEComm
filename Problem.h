@@ -58,7 +58,7 @@ public:
 	int rank;
 	// Data Structures from the input
 	// Spatial Data
-	int pin_x, pin_y;
+	int num_pin_x, num_pin_y;
 	int z_planes;
 	int refinement;
 	int sp_disc;

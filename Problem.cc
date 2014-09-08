@@ -23,8 +23,8 @@ void Problem::BuildProblem(Problem_Input* input)
 	MPI_Comm_rank (MPI_COMM_WORLD, &rank);
 
 	// Getting spatial Data from the input
-	pin_x = input->pin_x;
-	pin_y = input->pin_y;
+	num_pin_x = input->num_pin_x;
+	num_pin_y = input->num_pin_y;
 	refinement = input->refinement;
 	z_planes = input->z_planes;
 	sp_disc = input->sp_disc;

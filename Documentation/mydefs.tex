@@ -1,0 +1,120 @@
+%
+%  mydefs.tex   
+%  Command definitions that can be used in all documents that have
+%      \input{mydefs}
+%
+
+%Load the myriad packages
+%\usepackage{amssymb,amsmath}
+\usepackage{amsfonts}
+\usepackage{amsmath}
+\usepackage{textcomp}
+%\usepackage{graphicx}
+\usepackage{grffile}
+\usepackage{tikz}
+%\usepackage{subeqn} %for eqn 1a, 1b, etc
+\usepackage{subfig}    % for multi-figure figures
+%\usepackage[numbers, super]{natbib}
+%\usepackage{pdflscape}
+%\usepackage{rotating}
+%\usepackage{grffile} %spaces in file names
+%\usepackage{parskip}
+%\usepackage[T1]{fontenc} %for sc and bf
+%\usepackage{wasysym}
+%\usepackage{bigstrut}
+%\usepackage{hyperref}
+%\usepackage{Float}
+\usepackage{multirow}
+\usepackage[numbers,sort&compress]{natbib}
+
+%Tikz libraries
+\usetikzlibrary{calc,trees,positioning,arrows,chains,shapes.geometric,%
+    decorations.pathreplacing,decorations.pathmorphing,shapes,%
+    matrix,shapes.symbols}
+
+% Optional for code samples
+\usepackage{listings}
+\lstloadlanguages{Matlab}
+\lstset{language=Matlab,commentstyle=\color{blue},keywordstyle=\color{red}}
+
+%MCNP syntax highlighting
+\definecolor{lightgrey}{rgb}{0.9,0.9,0.9}
+\definecolor{darkgreen}{rgb}{0,0.6,0}
+ 
+\lstdefinelanguage{MCNP}
+{morekeywords={kcode,ksrc,mode,print,prdmp},
+sensitive=false,
+morecomment=[f]{c},
+morecomment=[l]{$},
+morestring=[b]",
+numbers=left,
+numberstyle =\tiny,
+}
+
+\lstset{
+language=Matlab,
+numbers=left,
+numberstyle =\tiny,}
+
+%placeholder cite
+\newcommand{\CITE}{({\bf cite})}
+%singular
+\newcommand{\fref}[1]{Fig.~\ref{fig:#1}}
+\newcommand{\Fref}[1]{Figure~\ref{fig:#1}}
+\newcommand{\eref}[1]{Eq.~(\ref{eq:#1})}
+\newcommand{\Eref}[1]{Equation~(\ref{eq:#1})}
+\newcommand{\tref}[1]{Table~\ref{tab:#1}}
+%plural
+\newcommand{\frefs}[2]{Figs.~\ref{fig:#1} and \ref{fig:#2}}
+\newcommand{\Frefs}[2]{Figures~\ref{fig:#1} and \ref{fig:#2}}
+\newcommand{\erefs}[2]{Eqs.~(\ref{eq:#1}) and (\ref{eq:#2})}
+\newcommand{\Erefs}[2]{Equations~(\ref{eq:#1}) and (\ref{eq:#2})}
+\newcommand{\trefs}[2]{Tables~\ref{tab:#1} and \ref{tab:#2}}
+%range
+\newcommand{\frefss}[2]{Figs.~\ref{fig:#1} - \ref{fig:#2}}
+\newcommand{\Frefss}[2]{Figures~\ref{fig:#1} - \ref{fig:#2}}
+\newcommand{\erefss}[2]{Eqs.~(\ref{eq:#1}) - (\ref{eq:#2})}
+\newcommand{\Erefss}[2]{Equations~(\ref{eq:#1}) - (\ref{eq:#2})}
+\newcommand{\trefss}[2]{Tables~\ref{tab:#1} - \ref{tab:#2}}
+%misc.
+\newcommand{\nn}[1]{\ensuremath{^{#1}}} %[1] is # of commands
+\newcommand{\keff}{\ensuremath{{k_\mathrm{eff}}}}
+\newcommand{\kinf}{\ensuremath{{k_\infty}}}
+\newcommand{\alphaT}{\ensuremath{{\alpha_{_T}}}}
+\newcommand{\SN}{\ensuremath{{\text{S}_n}}}
+\newcommand{\PN}{\ensuremath{{\text{P}_n}}}
+\newcommand{\order}[1]{\ensuremath{\mathcal{O}\left(#1\right)}}
+% some simplifying commands
+\newcommand{\eg}{e.g.}
+%\newcommand{\eg}{{\it e.g.}} 
+\newcommand{\ie}{i.e.}
+\newcommand{\etal}{et al.}
+\newcommand{\viz}{viz.}
+\newcommand{\cf}{cf.}
+\newcommand{\acite}[1]{{\bf(Add Citation: #1)}}
+\newcommand{\E}{\mathcal{E}}
+% derivative - d
+\newcommand{\ud}[1]{\,\mathrm{d}{#1}\;}
+% bold unit vector n-hat
+\newcommand{\nhat}{\hat{\bf n}}
+\newcommand{\tensor}[1]{\mathcal{#1}}
+\renewcommand{\vec}[1]{\mathbf{#1}}
+%Use for vectors of symbols (or use \pmb)
+\newcommand{\vecsym}[1]{\boldsymbol{#1}}
+\newcommand{\om}{\boldsymbol{\Omega}}
+
+\newlength \figwidth
+\setlength \figwidth {0.8\textwidth}
+\captionsetup[subfigure]{width=0.4\textwidth} %trouble-maker
+\captionsetup[subfigure]{font={footnotesize,stretch=1.1},skip=0pt}
+
+ 
+ %LaTeX hyphenation
+ \hyphenation{epi-thermal}
+
+%Tikz flowchart parameters
+
+\tikzstyle{block} = [rectangle, draw, fill=white, 
+    text width=6em, text centered, rounded corners, minimum height=3em]
+\tikzstyle{line} = [draw, thick, -latex']
+ \tikzstyle{data} = [text width = 5em, text centered, node distance=1.6cm, inner sep=5pt] 

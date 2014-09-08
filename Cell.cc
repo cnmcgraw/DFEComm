@@ -91,8 +91,8 @@ void Cell::GetCellijk(int Cell_ID, int Dx, int Dy, int Dz, std::vector<int>& ijk
 
 void Cell::ComputeCellID(int Local_ID, int CS_ID, Problem* problem)
 {
-	cells_x = 2*problem->pin_x*problem->refinement/problem->num_cellsets[0];
-	cells_y = 2*problem->pin_y*problem->refinement/problem->num_cellsets[1];
+	cells_x = 2*problem->num_pin_x*problem->refinement/problem->num_cellsets[0];
+	cells_y = 2*problem->num_pin_y*problem->refinement/problem->num_cellsets[1];
 	cells_z = problem->z_planes/problem->num_cellsets[2];
 
 	cells_per_cellset = cells_x*cells_y*cells_z;
