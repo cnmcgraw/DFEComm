@@ -379,7 +379,7 @@ void Problem::Sweep(std::ofstream &output)
 								}
 							}
 
-							// Solve A^-1*RHS wwith Gaussian Elimination and store it in RHS (4 = number of elements)
+							// Solve A^-1*RHS with Gaussian Elimination and store it in RHS (4 = number of elements)
 							GE_no_pivoting(A, bg, 4);
 
 							// Now we accumulate the fluxes into phi;

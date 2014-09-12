@@ -139,15 +139,22 @@ Once cloned, the code can be updated to the newest version using the following c
 \begin{verbatim}
 >$ make
 \end{verbatim}
-To run DFEComm, use the following command:
+To run DFEComm using an input file, use the following command:
 \begin{verbatim}
 >$ mpirun -n [# SML] ./DFEComm -f [Input file]
+\end{verbatim}
+To run DFEComm using the preset problem sizes (described in the following section), use either of the two following commands:
+\begin{verbatim}
+>$ mpirun -n [# SML] ./DFEComm --problemsize [Problem Size]
+\end{verbatim}
+\begin{verbatim}
+>$ mpirun -n [# SML] ./DFEComm --s [Problem Size]
 \end{verbatim}
 Here the input file must be a text file in the format described in the next section. The number of SMLs indicated at run time must match that found in the input file.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Input File Structure}
-The input file is a text file with a listing of case sensitive keywords separated from their values by an ``='' surrounded by at least one set of spaces. Lines beginning with ``\#'' followed by at least one space are comments. The file format can take multiple formats, and blank lines and the order of keywords do not matter. A listing of all available keywords, their definitions, and their available values is seen in Table \ref{table::parameters}.  Several example inputs are available with the DFEComm source code to assist users. \\
+The input file is a text file with a listing of case sensitive keywords separated from their values by an ``='' surrounded by at least one set of spaces. Lines beginning with ``\#'' followed by at least one space are comments. The file format can take multiple formats. Blank lines and the order of keywords do not matter. A listing of all available keywords, their definitions, and their available values is seen in Table \ref{table::parameters}.  Several example inputs are available with the DFEComm source code to assist users. \\
 
 \begin{table}[h!]
 \begin{center}
@@ -173,7 +180,7 @@ The input file is a text file with a listing of case sensitive keywords separate
     overload\_\{x,y,z\} & Positive Integer & None & Overload factor in \{x,y,z\} \\
     overload & Positive Integer & None & Total overload factor, used with partition\_type = 1,2, and 4 \\
     num\_cellsets\_\{x,y,z\} & Positive Integer & None & Total number of cellsets to divide the problem into in \{x,y,z\} \\ 
-    num\_sweeps & Positive Integer & None & Number of transport sweeps to perform and average over \\
+    num\_sweeps & Positive Integer & 5 & Number of transport sweeps to perform and average over \\
     \hline
   \end{tabular} 
       \caption{All Available Input Parameters}
@@ -219,17 +226,7 @@ num_sweeps = 10
   \caption[]{Example Verbose Input File}\label{fig::verbose}
 \end{figure}
 
-On the other end the spectrum, a much simpler form of the input can be seen in Figure \ref{fig::simplified}. This form is intended to allow the user to define a problem using the least amount of keywords. DFEComm has as a collection of preset problems which are defined per SML, specified with only one keyword, \emph{problem\_size}. The specifics of these predefined problems are detailed in the next section. For this input format, only the number of SMLs and the number of sweeps to perform are further required. DFEComm uses the auto-partitioning function and hybrid-KBA to divide the mesh among the SMLs. This example input is found in \emph{Example\_Input\_ProblemSize.txt} in the DFEComm folder.\\
-
-\begin{figure}[H]
-\begin{verbatim}
-# Simplified Input
-problem_size = 1
-num_SML = 2
-num_sweeps = 5
-\end{verbatim}  
-    \caption[]{Example Simplified Input File}\label{fig::simplified}
-\end{figure}
+On the other end the spectrum, a much simpler input requires only a few command line options. This form is intended to allow the user to define a problem using the least amount of errof. DFEComm has as a collection of preset problems which are defined per SML, specified with the command line options, \emph{--problem\_size} or \emph{-s}. The specifics of these predefined problems are detailed in the next section. For this input format, the number of SMLs is taken from the MPI \emph{-n} command line option and the number of sweeps is set to the default value of 5. DFEComm uses the auto-partitioning function and hybrid-KBA to divide the mesh among the SMLs. \\
 
 An example of an input using one of the predefined partitioning schemes in seen in Figure \ref{fig::partition}. The \emph{overload} keyword, required for \emph{partition\_types} 1, 2, and 4, defines the overload factor for both the x and y dimensions. \\
 
@@ -289,8 +286,6 @@ Four predefined problems are available in DFEComm to enable weak scaling studies
 DFEComm is an ongoing research effort, and therefore is still under active development. As such, a few desired features not yet implemented into DFEComm are set to become available soon. This includes:
 \begin{itemize}
 	\item Reflecting Boundary Conditions
-	\item Allowing the number of SMLs to be defined via the command line
-	\item Defining a default number of sweeps to perform
 	\item Multiple Cellsets per SML
 	\item Optimization of data movement to improve weak scaling efficiency
 \end{itemize}

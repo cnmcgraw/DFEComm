@@ -10,7 +10,13 @@
 
 
 Problem_Input::Problem_Input()
-{ }
+{ 	
+	// Defaults
+	partition_function.resize(3, 1);
+	overload.resize(3, 1);
+	num_cellsets.resize(3, 1);
+	num_sweeps = 5;
+}
 
 Problem_Input::~Problem_Input()
 { }
@@ -24,10 +30,12 @@ bool Problem_Input::CheckComment(std::vector<std::string> inputline) {
 void Problem_Input::ProcessInput(std::ifstream& input, std::ofstream& fout)
 {
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-	// Build and initialize mesh parameters
-	partition_function.resize(3, 1);
-	overload.resize(3, 1);
-	num_cellsets.resize(3, 1);
+
+	//// Defaults
+	//partition_function.resize(3, 1);
+	//overload.resize(3, 1);
+	//num_cellsets.resize(3, 1);
+	//num_sweeps = 5;
 
 	// Problem size indicates if the user has specified
 	// tiny, small, medium, or large problem (1,2,3, or 4)
@@ -115,7 +123,7 @@ void Problem_Input::ProcessInput(std::ifstream& input, std::ofstream& fout)
 	if (problem_size != 0)
 		DefineProblem();
 
-	// Check for a valid problem (only 1 processor)
+	// Check for a valid problem 
 	CheckProblemInput();
 	//Output(fout);
 }
@@ -254,6 +262,7 @@ void Problem_Input::DefineProblem()
 		num_pin_y = num_cellsets[1];
 		z_planes = 10*num_cellsets[2];
 		overload[2] = 10;
+		num_cellsets[2] *= 10;
 	}
 	// Small Problem
 	else if (problem_size == 2)
@@ -274,6 +283,7 @@ void Problem_Input::DefineProblem()
 		num_pin_y = num_cellsets[1];
 		z_planes = 100 * num_cellsets[2];
 		overload[2] = 100;
+		num_cellsets[2] *= 100;
 	}
 	// Medium Problem
 	else if (problem_size == 3)
@@ -294,6 +304,7 @@ void Problem_Input::DefineProblem()
 		num_pin_y = num_cellsets[1];
 		z_planes = 200 * num_cellsets[2];
 		overload[2] = 200;
+		num_cellsets[2] *= 200;
 	}
 	// Large Problem - This should test the limits of an SML
 	else if (problem_size == 4)
@@ -314,10 +325,12 @@ void Problem_Input::DefineProblem()
 		num_pin_y = num_cellsets[1];
 		z_planes = 200 * num_cellsets[2];
 		overload[2] = 200;
+		num_cellsets[2] *= 200;
 	}
 }
 void Problem_Input::CheckProblemInput()
 {
+	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 	// Check that spatial aggregation is integer multiple of 1/4 pin cells
 	if(!(2*num_pin_x/num_cellsets[0] == (int)2*num_pin_x/num_cellsets[0])){
 		if (rank == 0){ std::cout << "Invalid Partition in x" << std::endl; }
@@ -336,6 +349,7 @@ void Problem_Input::CheckProblemInput()
 	int p = 1;
 	for(int i = 0; i < 3; i++)
 		p = p*num_cellsets[i]/overload[i];
+	
 	if(!(p == num_SML)){
 		if (rank == 0){
 			std::cout << "Invalid Partitioning" << std::endl;
@@ -343,7 +357,6 @@ void Problem_Input::CheckProblemInput()
 		}
 		MPI_Abort(MPI_COMM_WORLD,1);
 	}
-
 	// Check that the number of angles per angleset is an integer
 	if(ang_agg_type == 2 && !(num_polar/2 == (int)num_polar/2)){
 		if (rank == 0){ std::cout << "Invalid Polar Aggregation" << std::endl; }
@@ -353,15 +366,12 @@ void Problem_Input::CheckProblemInput()
 		if (rank == 0){ std::cout << "Invalid Number of Azimuthal Angles" << std::endl; }
 		MPI_Abort(MPI_COMM_WORLD,1);
 	}
-
 	// Check that the number of groups per groupset is an integer
 	if(!(num_groups/num_groupsets == (int)num_groups/num_groupsets)){
 		if (rank == 0){ std::cout << "Non-integer number of groups per groupset" << std::endl; }
 		MPI_Abort(MPI_COMM_WORLD,1);
 	}
-
-
-
+	
 }
 std::vector<int> Problem_Input::FactorSMLCount()
 {
@@ -370,7 +380,7 @@ std::vector<int> Problem_Input::FactorSMLCount()
 	// Check if the number of SMLs are greater than 2
 	if (num_SML >= 2)
 	{
-		if (num_SML & 2 != 0)
+		if (num_SML % 2 != 0)
 		{
 			if (rank == 0){ std::cout << "Automatic SML Factoring cannot handle odd SML Counts" << std::endl; }
 			MPI_Abort(MPI_COMM_WORLD, 1);

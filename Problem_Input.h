@@ -68,19 +68,20 @@ public:
 	// Read the input file and store into data structures
 	void ProcessInput(std::ifstream&, std::ofstream&);
 
-	// Check to see if the line is a comment (delimiter = #)
-	bool CheckComment(std::vector<std::string>);
+	// If the user defines a problem_size, need to specify all the parameters
+	void DefineProblem();
+
+	// Check to make sure the problem is well defined
+	void CheckProblemInput();
 	
 private:
 	std::string name;
 	std::vector<std::string> inpL;
 	int rank;
 
-	// If the user defines a problem_size, need to specify all the parameters
-	void DefineProblem();
+	// Check to see if the line is a comment (delimiter = #)
+	bool CheckComment(std::vector<std::string>);
 
-	// Check to make sure the problem is well defined
-	void CheckProblemInput();
 	void GetPartitionParameters();
 
 	std::vector<int> FactorSMLCount();
