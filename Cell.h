@@ -17,6 +17,7 @@ struct Neighbor{
 	Direction direction;
 	// This will be used for Cellsets neighbors
 	int SML;
+  int local_id;
 
 	Neighbor operator =(Neighbor a){
 		id = a.id;
