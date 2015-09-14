@@ -20,7 +20,7 @@ public:
 	// Number of pins in x and y
 	int num_pin_x, num_pin_y;
 
-	// Number of planes in the z dimension (will be 1 for 2D problem)
+	// Number of planes in the z dimension 
 	int z_planes;
 
 	// The number of cells per pin cell will be (2*refinement)^2
@@ -64,6 +64,9 @@ public:
 
 	// Number of sweeps to perform (for averaging)
 	int num_sweeps;
+  
+  // Flag for verbose output to the screen
+  bool verbose;
 
 	// Read the input file and store into data structures
 	void ProcessInput(std::ifstream&, std::ofstream&);
@@ -73,11 +76,16 @@ public:
 
 	// Check to make sure the problem is well defined
 	void CheckProblemInput();
+  
+  // Prints out usage in the event of an input error
+  void SetVerbose(bool);
 	
 private:
 	std::string name;
 	std::vector<std::string> inpL;
 	int rank;
+
+  bool partition_bool;
 
 	// Check to see if the line is a comment (delimiter = #)
 	bool CheckComment(std::vector<std::string>);

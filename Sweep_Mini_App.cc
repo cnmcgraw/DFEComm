@@ -18,6 +18,28 @@ using std::stringstream;
 Problem_Input* input_data = 0;
 Problem* problem = 0;
 
+void usage(){
+  int rank;
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  if(rank == 0){
+    printf("Usage:  [mpirun ...] ./DFEComm [options ...]\n");
+    printf("Where options are:\n");
+    printf(" -f [Input file]       Input file to run\n");
+    printf(" -o [Output file]      Output file to write to\n");
+    printf(" -v                    Option for verbose output\n");
+    printf(" --problemsize [S]     Preset problem size\n");
+    printf(" -s [S]                Preset problem size\n");
+    printf("                       Options are 1,2,3, or 4\n");
+    printf("                       One z plane/cellset, octant angle aggregation, single groupset\n");
+    printf("                       1: Mesh/core = 2x2x10,    Quad = 4x4,   Groups = 10\n");
+    printf("                       2: Mesh/core = 10x10x100, Quad = 4x16,  Groups = 50\n");
+    printf("                       3: Mesh/core = 10x10x200, Quad = 16x16, Groups = 100\n");
+    printf("                       4: Mesh/core = 10x10x200, Quad = 16x64, Groups = 500\n");  
+  }
+  MPI_Finalize();
+  exit(1);
+
+}
 int main(int argc, char **argv)
 {
 
@@ -29,42 +51,46 @@ int main(int argc, char **argv)
   // Parse the command line
   string input_file_name, output_file_name;
   std::ifstream input;
-  bool problem_size_bool(false), input_file_bool(false);
+  bool problem_size_bool(false), input_file_bool(false), verbose_bool(false);
   int problem_size;
   for (int i = 1; i < argc; i++)
   {
     string arg = (argv)[i];
-  // Check for input file
+    // Check for input file
     if (arg == "-f" && i+1 < argc)
-  {
-    input_file_bool = true;
+    {
+      input_file_bool = true;
       input_file_name  = (argv)[i+1];
-    input.open(input_file_name.c_str(), std::ios_base::in);
-  }
-  // Check if problem size is specified
-  else if ((arg == "--problemsize" || arg == "-s") && i+1 < argc)
-  {
+      input.open(input_file_name.c_str(), std::ios_base::in);
+    }
+    // Check if problem size is specified
+    else if ((arg == "--problemsize" || arg == "-s") && i+1 < argc)
+    {
       problem_size_bool = true;
-    problem_size = atoi((argv)[i+1]);
-  }
+      problem_size = atoi((argv)[i+1]);
+    }
+    // Check if output file name is specified
+    else if (arg == "-o" && i+1 < argc)
+    {
+      output_file_name  = (argv)[i+1];   
+    }
+    // Check if the user wants verbose output
+    else if (arg == "-v")
+    {
+      verbose_bool = true;  
+    }
   }
 
   // If both an input file and a problem_size were specified, we abort
   // This could be changed to favor one or the other
   if(problem_size_bool == true && input_file_bool == true)
   {
-     if (rank == 0){
-      std::cout << "Both a problem size and input file were specified. Please choose only one." << std::endl;
-     }
-   MPI_Abort(MPI_COMM_WORLD, 1);
+   usage();
   }
   // If neither an input file or a problem_size were specified, we abort
   if(problem_size_bool == false && input_file_bool == false)
   {
-     if (rank == 0){
-      std::cout << "Please specify an input file or a problem_size." << std::endl;
-     }
-   MPI_Abort(MPI_COMM_WORLD, 1);
+   usage();
   }
   // If we've gotten here, the use has either specified an input file, or a problem_size (not both)
   std::ofstream output;
@@ -73,17 +99,19 @@ int main(int argc, char **argv)
     // If we specified an input file, we need to make sure a valid input file was opened
     if (input_file_name.empty())
     {
-     if (rank == 0){ std::cout << "Need to specify input file (Did you forget '-f'?)" << std::endl; }
-     MPI_Abort(MPI_COMM_WORLD, 1);
+     usage();
     }
 
     // Derive the output file name
-    output_file_name = input_file_name;
-    int n = output_file_name.rfind('.');
-    if (n != string::npos)
-    output_file_name.erase(n, string::npos);
+    if(output_file_name.empty())
+    {
+      output_file_name = input_file_name;
+      int n = output_file_name.rfind('.');
+      if (n != string::npos)
+        output_file_name.erase(n, string::npos);
 
-    output_file_name += ".out";
+      output_file_name += ".out";
+    }
 
     // Create input and output streams
     if ((input).fail())
@@ -107,6 +135,7 @@ int main(int argc, char **argv)
     // Read Input
     input_data = new Problem_Input();
     input_data->ProcessInput(input, output);
+    input_data->SetVerbose(verbose_bool);
   }
   // Problem Size has been specified
   else
@@ -135,11 +164,52 @@ int main(int argc, char **argv)
     input_data->problem_size = problem_size;
     input_data->DefineProblem();
     input_data->CheckProblemInput();
+    input_data->SetVerbose(verbose_bool);
   }
 
   // Build all the data structures, subdomain, quadrature, energy grid
   problem = new Problem();
   problem->BuildProblem(input_data);
+    
+  // First print problem parameters to output file
+  if(rank == 0)
+  {
+    time_t currentTime;
+    struct tm *localTime;
+
+    time( &currentTime );                   // Get the current time
+    localTime = localtime( &currentTime );  // Convert the current time to the local time
+    int Day    = localTime->tm_mday;
+    int Month  = localTime->tm_mon + 1;
+    int Year   = localTime->tm_year + 1900;
+    int Hour   = localTime->tm_hour;
+    int Min    = localTime->tm_min;
+    int Sec    = localTime->tm_sec;
+
+    output << "SimpleLD run at " << Day << "/" << Month << "/" << Year << " " << Hour << ":" << Min << ":" << Sec << std::endl;
+    output << "   _____ _                 _      _      _____  " << std::endl;
+    output << "  / ____(_)               | |    | |    |  __ \\ " << std::endl;
+    output << " | (___  _ _ __ ___  _ __ | | ___| |    | |  | |" << std::endl;
+    output << "  \\___ \\| | '_ ` _ \\| '_ \\| |/ _ \\ |    | |  | |" << std::endl;
+    output << "  ____) | | | | | | | |_) | |  __/ |____| |__| |" << std::endl;
+    output << " |_____/|_|_| |_| |_| .__/|_|\\___|______|_____/ " << std::endl;
+    output << "                    | |                         " << std::endl;
+    output << "                    |_|                         " << std::endl;
+
+    output << "================================================================" << std::endl;
+    output << "  Problem parameters: " <<std::endl;
+    output << "  Pin_x * Pin_y                                 : " << problem->num_pin_x << "*" << problem->num_pin_y << std::endl;
+    output << "  Number of cells per pincell                   : " << 2*problem->refinement << "*" << 2*problem->refinement << "*" << problem->z_planes << std::endl;
+    output << "  Quadrature (per octant)                       : " << problem->num_polar/2 << "*" << problem->num_azim/4 << std::endl;
+    output << "  Angle Aggregation (1=single 2=polar, 3=octant): " << problem->ang_agg_type << std::endl;
+    output << "  Number of groups per groupset                 : " << problem->group_per_groupset << std::endl;
+    output << "  Number of groupsets                           : " << problem->num_groupsets << std::endl;
+    output << "  Number of SMLs (Px,Py,Pz)                     : " << problem->num_SML << " (" << problem->num_cellsets[0]/problem->overload[0]<< "," << problem->num_cellsets[1]/problem->overload[1]<< "," << problem->num_cellsets[2]/problem->overload[2]<< ")" <<std::endl;
+    output << "  Overload (Ox, Oy, Oz)                         : " << "(" << problem->overload[0]<< "," << problem->overload[1]<< "," << problem->overload[2]<< ")" <<std::endl;
+    output << "================================================================" << std::endl;
+    output << " " << std::endl;
+  
+  }
   // Perform the sweep
   double start;
   long double duration, total_duration;

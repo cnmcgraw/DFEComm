@@ -42,21 +42,10 @@ public:
 	void BuildSubdomain(int, Problem*);
 
 	// Compute all the CellSet IDs this SML owns (given the SML ID)
-	void ComputeCellSetID(int, Problem*);
+	void ComputeCellSetID(int);
 
-	// From the input, set the boundary conditions
-	void SetBoundaryConditions(Problem*);
-
-	// Function (given a boundary) returns the boundary condition
-	double GetBoundaryCondition(int);
-
-	// Allocate the send buffers
-	void AllocateBuffers(int);
-
-	// Set functions for the X, Y, and Z buffers
-	void Set_buffer(int, int, int, int, int, int, int, vector<double>&);
-	void Get_buffer(int, int, int, int, int, int, vector<double>&);
-	void Get_buffer_from_bc(int);
+  // Computes the local CS_ID given the global ID and the SML_ID
+  int ComputeCellSetIndex(int CS_ID, int SML_ID);
 
 
 private:
@@ -66,6 +55,10 @@ private:
 
 	int angle_per_angleset;
 	int group_per_groupset;
+
+  vector<int> num_cellsets;
+  vector<int> overload;
+  vector<int> partition_function;
 
 };
 

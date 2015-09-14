@@ -16,6 +16,10 @@ Problem_Input::Problem_Input()
   overload.resize(3, 1);
   num_cellsets.resize(3, 1);
   num_sweeps = 5;
+  partition_type = 0;
+  MPI_Comm_size(MPI_COMM_WORLD, &num_SML);
+
+  partition_bool = false;
 }
 
 Problem_Input::~Problem_Input()
@@ -100,10 +104,12 @@ void Problem_Input::ProcessInput(std::ifstream& input, std::ofstream& fout)
             if (inpL[0] == "num_groupsets")
               num_groupsets = atoi(inpL[2].c_str());
 
-            if (inpL[0] == "partition_type")
-              partition_type = atoi(inpL[2].c_str());
-
-            GetPartitionParameters();
+            if (inpL[0] == "partition_type" || partition_bool){
+              if(!partition_bool)
+                partition_type = atoi(inpL[2].c_str());
+              partition_bool = true;
+              GetPartitionParameters();
+            }
             sched_type = 1;
             if (inpL[0] == "sched_type")
               sched_type = atoi(inpL[2].c_str());
@@ -135,19 +141,27 @@ void Problem_Input::GetPartitionParameters()
     {
       num_cellsets[0] = (int)sqrt(num_SML);
       num_cellsets[1] = (int)sqrt(num_SML);
-      num_cellsets[2] = z_planes;
       overload[0] = 1;
       overload[1] = 1;
-      overload[2] = z_planes;
+      if(inpL[0] == "overload")
+        overload[2] = z_planes / atoi( inpL[2].c_str() );
+      else
+        overload[2] = z_planes;
+        
+      num_cellsets[2] = overload[2];
     }
     else
     {
       num_cellsets[0] = (int)sqrt(num_SML / 2);
       num_cellsets[1] = (int)sqrt(num_SML / 2);
-      num_cellsets[2] = z_planes / 2;
       overload[0] = 1;
       overload[1] = 1;
-      overload[2] = z_planes;
+      if(inpL[0] == "overload")
+        overload[2] = z_planes / atoi( inpL[2].c_str() );
+      else
+        overload[2] = z_planes / 2;
+        
+      num_cellsets[2] = overload[2] * 2;
     }
   }
   // KBA
@@ -155,8 +169,8 @@ void Problem_Input::GetPartitionParameters()
     if(inpL[0] == "overload")
       overload[0] = atoi( inpL[2].c_str() );
 
-    num_cellsets[0] = (int)sqrt(num_SML)/overload[0];
-    num_cellsets[1] = (int)sqrt(num_SML)/overload[0];
+    num_cellsets[0] = (int)sqrt(num_SML) * overload[0];
+    num_cellsets[1] = (int)sqrt(num_SML) * overload[0];
     num_cellsets[2] = z_planes;
     overload[1] = overload[0];
     overload[2] = z_planes;
@@ -167,11 +181,11 @@ void Problem_Input::GetPartitionParameters()
     if(inpL[0] == "overload")
       overload[0] = atoi( inpL[2].c_str() );
 
-    num_cellsets[0] = (int)sqrt(num_SML/2)/overload[0];
-    num_cellsets[1] = (int)sqrt(num_SML/2)/overload[0];
-    num_cellsets[2] = z_planes/2;
+    num_cellsets[0] = (int)sqrt(num_SML/2) * overload[0];
+    num_cellsets[1] = (int)sqrt(num_SML/2) * overload[0];
+    num_cellsets[2] = z_planes;
     overload[1] = overload[0];
-    overload[2] = z_planes;
+    overload[2] = z_planes /2;
   }
   // Extended Hybrid
   if(partition_type == 3){
@@ -197,9 +211,9 @@ void Problem_Input::GetPartitionParameters()
     overload[1] = overload[0];
     overload[2] = overload[0];      
       
-    num_cellsets[0] = (int)pow(num_SML/overload[0],(1/3));
-    num_cellsets[1] = (int)pow(num_SML/overload[0],(1/3));
-    num_cellsets[2] = (int)pow(num_SML/overload[0],(1/3));
+    num_cellsets[0] = (int)pow(num_SML,(1/3)) * overload[0];
+    num_cellsets[1] = (int)pow(num_SML,(1/3)) * overload[1];
+    num_cellsets[2] = (int)pow(num_SML,(1/3)) * overload[2];
   }
   // Need to add partition parameters for predefined partition types
   if(partition_type == 6)
@@ -260,9 +274,9 @@ void Problem_Input::DefineProblem()
     refinement = 1;
     num_pin_x = num_cellsets[0];
     num_pin_y = num_cellsets[1];
-    z_planes = 10*num_cellsets[2];
-    overload[2] = 10;
-    num_cellsets[2] *= 10;
+    z_planes = 16*num_cellsets[2];
+    overload[2] = 16;
+    num_cellsets[2] *= 16;
   }
   // Small Problem
   else if (problem_size == 2)
@@ -273,7 +287,7 @@ void Problem_Input::DefineProblem()
     ang_agg_type = 3; // Octant
 
     // Energy Data
-    num_groups = 50;
+    num_groups = 20;
     num_groupsets = 1;
 
     // Spatial Data
@@ -281,9 +295,9 @@ void Problem_Input::DefineProblem()
     refinement = 5;
     num_pin_x = num_cellsets[0];
     num_pin_y = num_cellsets[1];
-    z_planes = 100 * num_cellsets[2];
-    overload[2] = 100;
-    num_cellsets[2] *= 100;
+    z_planes = 50 * num_cellsets[2];
+    overload[2] = 50;
+    num_cellsets[2] *= 50;
   }
   // Medium Problem
   else if (problem_size == 3)
@@ -332,15 +346,15 @@ void Problem_Input::CheckProblemInput()
 {
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   // Check that spatial aggregation is integer multiple of 1/4 pin cells
-  if(!(2*num_pin_x/num_cellsets[0] == (int)2*num_pin_x/num_cellsets[0])){
+  if(!(2*num_pin_x % num_cellsets[0] == 0)){
     if (rank == 0){ std::cout << "Invalid Partition in x" << std::endl; }
     MPI_Abort(MPI_COMM_WORLD,1);
   }
-  if(!(2*num_pin_y/num_cellsets[1] == (int)2*num_pin_y/num_cellsets[1])){
+  if(!(2*num_pin_y % num_cellsets[1] == 0)){
     if (rank == 0){ std::cout << "Invalid Partition in y" << std::endl; }
     MPI_Abort(MPI_COMM_WORLD,1);
   }
-  if(!(z_planes/num_cellsets[2] == (int)z_planes/num_cellsets[2])){
+  if(!(z_planes % num_cellsets[2] == 0)){
     if (rank == 0){ std::cout << "Invalid Partition in z" << std::endl; }
     MPI_Abort(MPI_COMM_WORLD,1);
   }
@@ -353,7 +367,7 @@ void Problem_Input::CheckProblemInput()
   if(!(p == num_SML)){
     if (rank == 0){
       std::cout << "Invalid Partitioning" << std::endl;
-      std::cout << "Specified number of SML = " << num_SML << " and P_eff = " << p << std::endl;
+      std::cout << "Specified number of SML = " << num_SML << " and P_eff(x,y,z,p_tot) = (" << num_cellsets[0]/overload[0] << "," << num_cellsets[1]/overload[1] << "," << num_cellsets[2]/overload[2] << "," << p << ")" <<std::endl;
     }
     MPI_Abort(MPI_COMM_WORLD,1);
   }
@@ -421,4 +435,8 @@ std::vector<int> Problem_Input::FactorSMLCount()
       }
     }
   }
+}
+void Problem_Input::SetVerbose(bool verbose_bool)
+{
+  verbose = verbose_bool;
 }

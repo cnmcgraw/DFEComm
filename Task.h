@@ -29,6 +29,7 @@ public:
 	Direction omega;
   vector<vector<int> > incoming, outgoing;
 
+
 	// Matrices holding buffer space for incoming information
 	// They are contiguous vectors of psi's in order of cells, 
 	// then groups, and finally angles
@@ -52,7 +53,10 @@ public:
 	double GetBoundaryCondition(int);
 
 	// Allocate the send buffers
-	void AllocateBuffers(int);
+	void AllocateBuffers(void);
+
+  // Sets the index in the AllTasks array
+  void SetIndex(int i);
 
 	// Set functions for the X, Y, and Z buffers
 	void Set_buffer(int, int, int, int, int, int, int, vector<double>&);
@@ -72,6 +76,7 @@ public:
   int num_groupset;
 	
 	int task_id;
+  int index;
 	
 	vector<double> bc;
 

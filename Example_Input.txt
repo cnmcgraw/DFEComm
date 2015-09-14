@@ -1,17 +1,17 @@
 # Space
-num_pin_x = 1
-num_pin_y = 1
-refinement = 8
-z_planes = 32
+num_pin_x = 2
+num_pin_y = 2
+refinement = 1
+z_planes = 10
 bc = 2
 
 # Angle
-num_polar = 10
-num_azim = 8
+num_polar = 4
+num_azim = 4
 angle_aggregation = 3
 
 # Energy
-num_groups = 1
+num_groups = 10
 num_groupsets = 1
 
 # Partitioning
@@ -27,9 +27,9 @@ overload_y = 1
 num_cellsets_y = 1
 
 func_z = 1
-overload_z = 1
-num_cellsets_z = 2
+overload_z = 2
+num_cellsets_z = 4
 
-num_sweeps = 10
+num_sweeps = 2
 	
 	

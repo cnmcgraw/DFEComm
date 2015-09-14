@@ -1,7 +1,7 @@
 # prompt> make
 #
 CC     = g++ -std=c++11 -g     # the c compiler to use
-MPICC  = mpic++ -g  # the MPI cc compiler
+MPICC  = mpig++ -g  # the MPI cc compiler
 CFLAGS = -O3     # optimize code
 DEPFILE	= .depends
 DEPTOKEN	= '\# MAKEDEPENDS'

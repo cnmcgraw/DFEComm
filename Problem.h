@@ -37,6 +37,7 @@ public:
 	int partition_type;
 	std::vector< int > partition_function, overload, num_cellsets;
 	int sched_type;
+  bool verbose;
 
 	// Solution Data Structures
 
@@ -65,17 +66,11 @@ private:
 	Direction omega,facecenter;
 	double sigma_t, cell_average;
 	int num_tasks;
+  std::vector<int> Task_IDs;
 
 	int GetCell(int, int, int, int, int, int, int);
 
 	void GE_no_pivoting(std::vector<std::vector< double > >&, std::vector<double>&, int);
-
-	// Returns the Target of the messages being sent or received
-	unsigned int GetTarget(int, int, int, int);
-
-	// Gets the next open place is the Receive buffer
-	int GetPlacement();
-
 
 };
 

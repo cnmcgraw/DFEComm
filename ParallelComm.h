@@ -14,13 +14,6 @@ class ParallelComm {
     // Adds a task to the work queue
     virtual void addTask(int sdom_id, Task &task);
 
-    // Checks if there are any outstanding task to complete
-    // false indicates all work is done, and all sends have completed
-    virtual bool workRemaining(void);
-
-    // Returns a vector of ready tasks, and clears them from the ready queue
-    virtual std::vector<int> readyTasks(void);
-
     // Marks task as complete, and performs downwind communication
     virtual void markComplete(int task_id);
 
@@ -33,18 +26,17 @@ class ParallelComm {
     // Sets the All_Tasks vector so we can get access to downstream task
     virtual void SetTask(Task* Task);
 
+    // Deletes all the vectors made during the sweep
+    virtual void CleanUp();
+
   protected:
     int computeTag(int mpi_rank, int task_id);
     static void computeRankTask(int tag, int &mpi_rank, int &task_id);
 
-    int findTaskinTasks(int task_id);
-    int findTask(int task_id);
     Task *dequeueTask(int task_id);
     void postRecvs(int task_id, Task &task);
     void postSends(Task *task, double *buffers[3]);
     void testRecieves(void);
-    void waitAllSends(void);
-    std::vector<int> getReadyList(void);
 
 
     // These vectors contian the recieve requests and the index in the request vector
