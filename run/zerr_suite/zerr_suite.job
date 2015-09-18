@@ -1,0 +1,23 @@
+#!/bin/sh
+#MSUB -l nodes=64
+#MSUB -l walltime=00:30:00
+#MSUB -q pbatch
+#MSUB -A tamu
+#MSUB -d /p/lscratchd/mcgraw6/DFE_Comm/DFEComm/run/zerr_suite
+#MSUB -j zerr.output
+# export LD_LIBRARY_PATH=/usr/gapps/tamu/chaos_x86_64/boost-1.53/lib:/usr/local/tools/silo-4.9/lib:/usr/local/tools/hdf5-gnu-serial-1.8.10/lib
+srun -n8 ../../DFEComm -f Zerr_8.txt -v > 8_proc.out 
+srun -n16 ../../DFEComm -f Zerr_16.txt -v > 16_proc.out
+srun -n32 ../../DFEComm -f Zerr_32.txt -v > 32_proc.out
+srun -n64 ../../DFEComm -f Zerr_64.txt -v > 64_proc.out
+srun -n128 ../../DFEComm -f Zerr_128.txt -v > 128_proc.out  
+srun -n256 ../../DFEComm -f Zerr_256.txt -v > 256_proc.out
+srun -n512 ../../DFEComm -f Zerr_512.txt -v > 512_proc.out 
+srun -n1024 ../../DFEComm -f Zerr_1024.txt -v > 1024_proc.out 
+# srun -n2048 ../../DFEComm -f Zerr_2048.txt -v > 2048_proc.out 
+# srun -n4096 ../../DFEComm -f Zerr_4096.txt -v > 4096_proc.out
+# srun -n8192 ../../DFEComm -f Zerr_8192.txt -v > 8192_proc.out  
+# srun -n16384 ../../DFEComm -f Zerr_16384.txt -v > 16384_proc.out 
+# srun -n32768 ../../DFEComm -f Zerr_32768.txt -v > 32768_proc.out 
+# srun -n65536 ../../DFEComm -f Zerr_65536.txt -v > 65536_proc.out 
+# srun -n131072 ../../DFEComm -f Zerr_131072.txt -v > 131072_proc.out 

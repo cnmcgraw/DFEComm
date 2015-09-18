@@ -185,6 +185,18 @@ int main(int argc, char **argv)
     int Hour   = localTime->tm_hour;
     int Min    = localTime->tm_min;
     int Sec    = localTime->tm_sec;
+    
+    int total_cells = 4*problem->refinement*problem->refinement*problem->z_planes*problem->num_pin_x*problem->num_pin_y;
+    int cells_per_SML = total_cells/problem->num_SML;
+    int unknowns_per_SML = cells_per_SML*problem->num_polar*problem->num_azim*problem->group_per_groupset*problem->group_per_groupset;
+    int ang_task_num = 0;
+    if(problem->ang_agg_type == 1)
+      ang_task_num = problem->num_polar*problem->num_azim;
+    else if(problem->ang_agg_type == 2)
+      ang_task_num = problem->num_azim;
+    else
+      ang_task_num = 8;
+    int unknowns_per_task = unknowns_per_SML / (ang_task_num * problem->num_groupsets * problem->overload[0]*problem->overload[1]*problem->overload[2]);
 
     output << "SimpleLD run at " << Day << "/" << Month << "/" << Year << " " << Hour << ":" << Min << ":" << Sec << std::endl;
     output << "   _____ _                 _      _      _____  " << std::endl;
@@ -206,6 +218,9 @@ int main(int argc, char **argv)
     output << "  Number of groupsets                           : " << problem->num_groupsets << std::endl;
     output << "  Number of SMLs (Px,Py,Pz)                     : " << problem->num_SML << " (" << problem->num_cellsets[0]/problem->overload[0]<< "," << problem->num_cellsets[1]/problem->overload[1]<< "," << problem->num_cellsets[2]/problem->overload[2]<< ")" <<std::endl;
     output << "  Overload (Ox, Oy, Oz)                         : " << "(" << problem->overload[0]<< "," << problem->overload[1]<< "," << problem->overload[2]<< ")" <<std::endl;
+    output << "  Number of cells per SML                       : " << cells_per_SML << std::endl;
+    output << "  Number of unknowns per SML                    : " << unknowns_per_SML << std::endl;
+    output << "  Number of unknowns per task                   : " << unknowns_per_task << std::endl;
     output << "================================================================" << std::endl;
     output << " " << std::endl;
   

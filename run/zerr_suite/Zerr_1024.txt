@@ -1,0 +1,35 @@
+# This is the 1-group Zerr Problem for 16 processors
+# Space
+num_pin_x = 32
+num_pin_y = 32
+refinement = 4
+z_planes = 256
+bc = 2
+
+# Angle
+num_polar = 10
+num_azim = 8
+angle_aggregation = 3
+
+# Energy
+num_groups = 1
+num_groupsets = 1
+
+# Partitioning
+num_SML = 1024
+partition_type = 6
+
+func_x = 1
+overload_x = 1
+num_cellsets_x = 32
+
+func_y = 1
+overload_y = 1
+num_cellsets_y = 16
+
+func_z = 1
+overload_z = 128
+num_cellsets_z = 256
+
+num_sweeps = 5
+
