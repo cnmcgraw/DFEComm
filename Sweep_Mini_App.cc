@@ -122,14 +122,16 @@ int main(int argc, char **argv)
       }
       MPI_Abort(MPI_COMM_WORLD, 1);
     }
-    output.open(output_file_name.c_str());
-    if ((output).fail())
-    {
-      if (rank == 0){
-        std::cout << "I/O error trying to open the file " << output_file_name
-          << "." << std::endl;
+    if(rank == 0){
+      output.open(output_file_name.c_str());
+      if ((output).fail())
+      {
+        if (rank == 0){
+          std::cout << "I/O error trying to open the file " << output_file_name
+            << "." << std::endl;
+        }
+        MPI_Abort(MPI_COMM_WORLD, 1);
       }
-      MPI_Abort(MPI_COMM_WORLD, 1);
     }
 
     // Read Input
@@ -148,14 +150,16 @@ int main(int argc, char **argv)
     ss << "Output_" << mpi_size << ".out";
     output_file_name = ss.str();
 
-    output.open(output_file_name.c_str());
-    if ((output).fail())
-    {
-      if (rank == 0){
-        std::cout << "I/O error trying to open the file " << output_file_name
-          << "." << std::endl;
+    if(rank == 0){
+      output.open(output_file_name.c_str());
+      if ((output).fail())
+      {
+        if (rank == 0){
+          std::cout << "I/O error trying to open the file " << output_file_name
+            << "." << std::endl;
+        }
+        MPI_Abort(MPI_COMM_WORLD, 1);
       }
-      MPI_Abort(MPI_COMM_WORLD, 1);
     }
 
     // Process the inputs from the Command line

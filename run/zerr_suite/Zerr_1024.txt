@@ -2,7 +2,7 @@
 # Space
 num_pin_x = 32
 num_pin_y = 32
-refinement = 4
+refinement = 2
 z_planes = 256
 bc = 2
 
