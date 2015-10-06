@@ -36,18 +36,21 @@ class ParallelComm {
     Task *dequeueTask(int task_id);
     void postRecvs(int task_id, Task &task);
     void postSends(Task *task, double *buffers[3]);
-    void testRecieves(void);
+    void testRecieves(int task_id);
 
 
     // These vectors contian the recieve requests and the index in the request vector
     std::vector<MPI_Request> recv_requests;
     std::vector<int> recv_tasks;
     std::vector<int> request_index;
+    std::vector<bool> already_completed;
 
     // These vectors have the tasks, and the remaining dependencies
     std::vector<int> queue_task_ids;
     std::vector<Task *> queue_tasks;
     std::vector<int> queue_depends;
+    std::vector<int> queue_request;
+    std::vector<int> queue_start_recv;
 
     // These vectors have the remaining send requests that are incomplete
     std::vector<MPI_Request> send_requests;

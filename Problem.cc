@@ -157,8 +157,9 @@ void Problem::BuildProblem(Problem_Input* input)
 void Problem::Sweep(std::ofstream &output)
 {
   // Timers
-  double start_task, start_cell;
-  long double duration_task(0), duration_cell(0);
+  double start_task, start_cell, start_wait, start_send;
+  long double duration_task(0), duration_innertask(0), duration_cell(0);
+  long double duration_wait(0), duration_send(0);
   // First off we need to add all the tasks to the comm:
   for(int i = 0; i < Task_IDs.size(); i++){
     int index = Task_IDs[i];
@@ -181,7 +182,7 @@ void Problem::Sweep(std::ofstream &output)
   std::vector<Task>::iterator it_end = All_Tasks.end();
   for (; it != it_end; it++, task_it++)
   {
-    start_task = MPI_Wtime();
+    start_loop = MPI_Wtime();
 
     // Get cellset and angleset information
     int cells_x = subdomain.CellSets[(*it).cellset_id_loc].cells_x;
@@ -194,9 +195,12 @@ void Problem::Sweep(std::ofstream &output)
     vector<vector<int> > incoming = (*it).incoming;
     vector<vector<int> > outgoing = (*it).outgoing;
 
+    start_wait = MPI_Wtime();
     comm.WaitforReady((*it).task_id);
+    duration_wait += MPI_Wtime() - start_wait;
 
-    start_loop = MPI_Wtime();
+    start_task = MPI_Wtime();
+    
     // We march through the cells first in x, then y, then z
     // The order (left to right or right to left) depends on what 
     // octant the angleset is in so we call GetCell to figure out where we are
@@ -206,7 +210,6 @@ void Problem::Sweep(std::ofstream &output)
       {
         for (int i = 0; i < cells_x; i++)
         {
-
           start_cell = MPI_Wtime();
           int cell_id = GetCell(i, j, k, cells_x, cells_y, cells_z, octant);
           Cell &my_cell = subdomain.CellSets[(*it).cellset_id_loc].Cells[cell_id];
@@ -222,16 +225,15 @@ void Problem::Sweep(std::ofstream &output)
           // Since the source is piece-wise constant, we only need to update the average value
           source[0] = my_cell.GetSource();
 
-          duration_cell += (MPI_Wtime() - start_cell);
-
-
+          
           // Loop over angles in the angleset
           for (int m = 0; m < angle_per_angleset; m++)
           {
-
+            start_angle = MPI_Wtime();
+            
             // Get the direction of the angle
             omega = quad.Anglesets[(*it).angleset_id].Omegas[m];
-            start_angle = MPI_Wtime();
+            
             // Add in the gradient matrix to the A matrix
             for (int a = 0; a < 4; a++)
             {
@@ -255,7 +257,7 @@ void Problem::Sweep(std::ofstream &output)
                 }
               }            
             }
-            duration_angle += MPI_Wtime() - start_angle;
+            
             // Loop over groups in this groupset
             for (int g = 0; g < group_per_groupset; g++)
             {
@@ -308,28 +310,36 @@ void Problem::Sweep(std::ofstream &output)
                 // Now store outgoing fluxes in the buffer arrays
                 (*it).Set_buffer(cell_ijk[0], cell_ijk[1], cell_ijk[2], g, m, outgoing[f][0], task_it, bg);
               }
+              duration_group += MPI_Wtime() - start_group;
             } //groups
-            duration_group += MPI_Wtime() - start_group;
+            duration_angle += MPI_Wtime() - start_angle;
           } //angles
+          duration_cell += (MPI_Wtime() - start_cell);
         } // cells in x
       } // cells in y
     } // cells in z
-
+    
+    duration_task += (MPI_Wtime() - start_task);
+    start_send = MPI_Wtime();
+    comm.markComplete((*it).task_id);
+    duration_send += MPI_Wtime() - start_send;
+     
     duration_loop = (MPI_Wtime() - start_loop);
     total_duration_loop += duration_loop;
-
-    comm.markComplete((*it).task_id);
-
-    duration_task += (MPI_Wtime() - start_task); 
   } // tasks
+  duration_task -= duration_cell;
+  duration_cell -= duration_angle;
+  duration_angle -= duration_group;
 
-if(rank == 0 && verbose){
-  printf("Total Duration: %Lf\n", total_duration_loop);
-  printf("          Task: %Lf\n", duration_task);
-  printf("          Cell: %Lf\n", duration_cell);
-  printf("         Angle: %Lf\n", duration_angle);
-  printf("         Group: %Lf\n", duration_group);
-  printf("             \n");
+  if(rank == 0 && verbose){
+    printf("Total Duration: %Lf\n", total_duration_loop);
+    printf("          Task: %Lf\n", duration_task);
+    printf("          Cell: %Lf\n", duration_cell);
+    printf("         Angle: %Lf\n", duration_angle);
+    printf("         Group: %Lf\n", duration_group);
+    printf("          Wait: %Lf\n", duration_wait);
+    printf("          Send: %LF\n", duration_send);
+    printf("             \n");
   }
 
   comm.CleanUp();

@@ -37,7 +37,6 @@ void ParallelComm::computeRankTask(int tag, int &mpi_rank, int &task_id){
   task_id = tag / mpi_size;
 }
 
-
 /**
   Adds a task to the work queue.
   Determines if incoming dependencies require communication, and posts appropirate Irecv's.
@@ -49,14 +48,10 @@ void ParallelComm::addTask(int task_id, Task &task){
 
 Task *ParallelComm::dequeueTask(int task_id){
 
-  // Get task pointer before removing it from queue
+  // Get task pointer
   Task *task = queue_tasks[task_id];
   int mpi_rank;
   MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
-  // remove task from queue
-//  queue_task_ids.erase(queue_task_ids.begin()+index);
-//  queue_tasks.erase(queue_tasks.begin()+index);
-//  queue_depends.erase(queue_depends.begin()+index);
 
   return task;
 }
@@ -73,6 +68,7 @@ void ParallelComm::postRecvs(int task_id, Task &task){
 
   // go thru each dimensions incoming neighbors, and add the dependencies
   int num_depends = 0;
+  int num_request = 0;
   for(int dim = 0;dim < 3;++ dim){
     // If it's a boundary condition, skip it
     if(task.incoming[dim][1] < 0){
@@ -88,6 +84,7 @@ void ParallelComm::postRecvs(int task_id, Task &task){
     recv_requests.push_back(MPI_Request());
     recv_tasks.push_back(task_id);
     request_index.push_back(recv_requests.size()-1);
+    already_completed.push_back(false);
     // compute the tag id of THIS task (tags are always based on destination)
      int tag = computeTag(mpi_rank, task_id);
     // Post the recieve
@@ -97,12 +94,18 @@ void ParallelComm::postRecvs(int task_id, Task &task){
 
     // increment number of dependencies
     num_depends ++;
+    num_request ++;
   }
 
   // add task to queue
   queue_task_ids.push_back(task_id);
   queue_tasks.push_back(&task);
   queue_depends.push_back(num_depends);
+  queue_request.push_back(num_request);
+  if(num_request == 0)
+    queue_start_recv.push_back(-1);
+  else
+    queue_start_recv.push_back(request_index.back() - num_request + 1);
 }
 
 void ParallelComm::postSends(Task *task, double *src_buffers[3]){
@@ -142,42 +145,55 @@ void ParallelComm::postSends(Task *task, double *src_buffers[3]){
   }
 }
 
-
 /**
   Checks for incomming messages, and does relevant bookkeeping.
 */
-void ParallelComm::testRecieves(void){
+void ParallelComm::testRecieves(int task_id){
 
-  // Check for any recv requests that have completed
-  int num_requests = recv_requests.size();
-  bool done = false;
-  while(!done && num_requests > 0){
-    // Create array of status variables
-    std::vector<MPI_Status> recv_status(num_requests);
+  int start_index = queue_start_recv[task_id];
+  int num_request = queue_request[task_id];
 
-    // Ask if either one or none of the recvs have completed?
-    int index; // this will be the index of request that completed
-    int complete_flag; // this is set to TRUE if something completed
-    MPI_Testany(num_requests, &recv_requests[0], &index, &complete_flag, &recv_status[0]);
-
-    if(complete_flag != 0){
-
-      // get task that this completed for
-      int task_id = recv_tasks[index];
-
-      // remove the request from the list
-      recv_requests.erase(recv_requests.begin()+index);
-      recv_tasks.erase(recv_tasks.begin()+index);
-      num_requests --;
-
-      // decrement the dependency count for that task
-      queue_depends[task_id] --;
-
-    }
-    else{
-      done = true;
+  int complete_flag;
+  MPI_Status recv_status;
+  for(int i = 0; i < num_request; i++){
+    MPI_Test(&recv_requests[start_index + i], &complete_flag, &recv_status);
+    if(complete_flag && !already_completed[start_index + i]){
+      queue_depends[task_id] -= 1;
+      already_completed[start_index + i] = true;
     }
   }
+
+   
+  // // Check for any recv requests that have completed
+  // int num_requests = recv_requests.size();
+  // bool done = false;
+  // while(!done && num_requests > 0){
+    // // Create array of status variables
+    // std::vector<MPI_Status> recv_status(num_requests);
+
+    // // Ask if either one or none of the recvs have completed?
+    // int index; // this will be the index of request that completed
+    // int complete_flag; // this is set to TRUE if something completed
+    // MPI_Testany(num_requests, &recv_requests[0], &index, &complete_flag, &recv_status[0]);
+
+    // if(complete_flag != 0){
+
+      // // get task that this completed for
+      // int task_id = recv_tasks[index];
+
+      // // remove the request from the list
+      // recv_requests.erase(recv_requests.begin()+index);
+      // recv_tasks.erase(recv_tasks.begin()+index);
+      // num_requests --;
+
+      // // decrement the dependency count for that task
+      // queue_depends[task_id] --;
+
+    // }
+    // else{
+      // done = true;
+    // }
+  // }
 }
 
 void ParallelComm::markComplete(int task_id){
@@ -194,20 +210,21 @@ void ParallelComm::markComplete(int task_id){
 }
 
 void ParallelComm::WaitforReady(int task_id){
- 
-  testRecieves();
   
   // Check to see if this task is ready
  // int index = findTask(task_id);
   bool ready = false;
   if(queue_depends[task_id] == 0)
     ready = true;
-
-  int tag = computeTag(all_tasks[task_id]->outgoing[2][1], all_tasks[task_id]->outgoing[2][2]);
+  else{
+    testRecieves(task_id);
+    if(queue_depends[task_id] == 0)
+      ready = true;
+   }
 
   // If it's not, Wait until it is
   while(!ready){
-    testRecieves();
+    testRecieves(task_id);
 
     if(queue_depends[task_id] == 0){
       ready = true; }

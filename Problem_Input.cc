@@ -287,12 +287,12 @@ void Problem_Input::DefineProblem()
     ang_agg_type = 3; // Octant
 
     // Energy Data
-    num_groups = 20;
+    num_groups = 10;
     num_groupsets = 1;
 
     // Spatial Data
     // A process owns 1 pincell which is 10x10x100 cells
-    refinement = 5;
+    refinement = 3;
     num_pin_x = num_cellsets[0];
     num_pin_y = num_cellsets[1];
     z_planes = 50 * num_cellsets[2];
