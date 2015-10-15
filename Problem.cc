@@ -117,19 +117,9 @@ void Problem::BuildProblem(Problem_Input* input)
     All_Tasks[i].SetIndex(i);
     comm.SetTask(&(All_Tasks[i]));
   }
-
-  double start_sort;
-  long double duration_sort;
-  start_sort = MPI_Wtime();
-
+  
   // Now we order the All_Tasks vector by depth, then angleset, then groupset
   std::sort(All_Tasks.begin(), All_Tasks.end(), by_depth());
-
-  duration_sort = (MPI_Wtime() - start_sort); 
-  if (rank == 0){
- //   std::cout << "Sort took " << duration_sort << " seconds." << std::endl;
-  }
-
   for(int i = 0 ; i < All_Tasks.size(); i++){
     Task_IDs[All_Tasks[i].task_id] = i;
   }
@@ -151,7 +141,7 @@ void Problem::BuildProblem(Problem_Input* input)
   // Resize the source. Piece-wise constant in each cell
   source.resize(4);
   source[0] = 1;
-
+  
 }
 
 void Problem::Sweep(std::ofstream &output)

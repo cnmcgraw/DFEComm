@@ -28,6 +28,10 @@ DEPFLAGS	= -Y -f $(DEPFILE) -s $(DEPTOKEN) -p
  clean:
 	rm -f $(DEPFILE)
 	rm DFEComm
+	
+ debug: depend $(SRCS)
+	$(MPICC) -o DFEComm $(CFLAGS) $(DFLAGS) $(SRCS)
+ 
 
  # put this file in the last line of your Makefile
  sinclude $(DEPFILE)

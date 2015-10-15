@@ -36,7 +36,7 @@ class ParallelComm {
     Task *dequeueTask(int task_id);
     void postRecvs(int task_id, Task &task);
     void postSends(Task *task, double *buffers[3]);
-    void testRecieves(int task_id);
+    void testRecieves(int task_id, bool wait);
 
 
     // These vectors contian the recieve requests and the index in the request vector

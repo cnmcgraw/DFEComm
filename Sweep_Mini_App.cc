@@ -225,6 +225,7 @@ int main(int argc, char **argv)
     output << "  Number of cells per SML                       : " << cells_per_SML << std::endl;
     output << "  Number of unknowns per SML                    : " << unknowns_per_SML << std::endl;
     output << "  Number of unknowns per task                   : " << unknowns_per_task << std::endl;
+    output << "  Number of tasks                               : " << unknowns_per_SML/unknowns_per_task << std::endl;
     output << "================================================================" << std::endl;
     output << " " << std::endl;
   
