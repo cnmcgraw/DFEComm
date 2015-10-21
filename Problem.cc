@@ -112,16 +112,16 @@ void Problem::BuildProblem(Problem_Input* input)
 
   }
 
-  // Give pointers to the tasks to the comm (so we can figure out neighbors)
-  for(int i = 0; i < num_tasks; i++){
-    All_Tasks[i].SetIndex(i);
-    comm.SetTask(&(All_Tasks[i]));
-  }
-  
   // Now we order the All_Tasks vector by depth, then angleset, then groupset
   std::sort(All_Tasks.begin(), All_Tasks.end(), by_depth());
   for(int i = 0 ; i < All_Tasks.size(); i++){
     Task_IDs[All_Tasks[i].task_id] = i;
+  }
+  
+    // Give pointers to the tasks to the comm (so we can figure out neighbors)
+  for(int i = 0; i < num_tasks; i++){
+    All_Tasks[i].SetIndex(i);
+    comm.SetTask(&(All_Tasks[i]));
   }
 
   for(int i = 0; i < num_tasks; i++){

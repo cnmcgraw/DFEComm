@@ -1,8 +1,8 @@
 # prompt> make
 #
 CC     = g++ -std=c++11 -g     # the c compiler to use
-MPICC  = mpig++ -g  # the MPI cc compiler
-CFLAGS = -O3     # optimize code
+MPICC  = mpig++ # the MPI cc compiler
+CFLAGS = -O3 # optimize code
 DEPFILE	= .depends
 DEPTOKEN	= '\# MAKEDEPENDS'
 DEPFLAGS	= -Y -f $(DEPFILE) -s $(DEPTOKEN) -p 
@@ -13,7 +13,7 @@ DEPFLAGS	= -Y -f $(DEPFILE) -s $(DEPTOKEN) -p
  OBJS_O	= $(foreach obj, $(OBJS), $(obj) )
 
  all: depend $(SRCS)
-	$(MPICC) -o DFEComm $(CFLAGS) $(DFLAGS) $(SRCS)
+	$(MPICC)-o DFEComm $(CFLAGS) $(SRCS)
 	
  depend:
 	rm -f $(DEPFILE)
@@ -30,7 +30,7 @@ DEPFLAGS	= -Y -f $(DEPFILE) -s $(DEPTOKEN) -p
 	rm DFEComm
 	
  debug: depend $(SRCS)
-	$(MPICC) -o DFEComm $(CFLAGS) $(DFLAGS) $(SRCS)
+	$(MPICC) -o DFEComm -g $(CFLAGS) $(DFLAGS) $(SRCS)
  
 
  # put this file in the last line of your Makefile

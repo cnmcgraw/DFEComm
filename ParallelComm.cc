@@ -13,19 +13,17 @@ ParallelComm::~ParallelComm(){
 void ParallelComm::setSizes(int cells, int angles, int groups){
   num_tasks = cells * angles * groups;
   
-    // We also need to resize the request vectors
+  // We also need to resize the various vectors
   recv_requests.resize(3*num_tasks, MPI_REQUEST_NULL);
+  send_requests.resize(3*num_tasks, MPI_REQUEST_NULL);
   already_completed.resize(3*num_tasks, true);
-  all_tasks.resize(num_tasks, NULL);
-  
- // queue_tasks.resize(num_tasks);
- // queue_depends.resize(num_tasks);
- // queue_request.resize(num_tasks);
+  queue_depends.resize(num_tasks);
+  all_tasks.resize(num_tasks, NULL); 
 }
 
-void ParallelComm::SetTask(Task* Task){
+void ParallelComm::SetTask(Task* task){
 
-    all_tasks[Task->task_id] = Task; 
+    all_tasks[task->task_id] = task; 
 }
 
 int ParallelComm::computeTag(int mpi_rank, int task_id){
@@ -59,14 +57,8 @@ void ParallelComm::addTask(int task_id, Task &task){
 Task *ParallelComm::dequeueTask(int task_id){
 
   // Get task pointer before removing it from queue
-  Task *task = queue_tasks[task_id];
- // Task *task = all_tasks[task_id];
-  int mpi_rank;
-  MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
-  // remove task from queue
-//  queue_task_ids.erase(queue_task_ids.begin()+index);
-//  queue_tasks.erase(queue_tasks.begin()+index);
-//  queue_depends.erase(queue_depends.begin()+index);
+ // Task *task = queue_tasks[task_id];
+  Task *task = all_tasks[task_id];
 
   return task;
 }
@@ -77,13 +69,11 @@ Task *ParallelComm::dequeueTask(int task_id){
   All recieves use the plane_data[] arrays as recieve buffers.
 */
 void ParallelComm::postRecvs(int task_id, Task &task){
-  int mpi_rank, mpi_size;
+  int mpi_rank;
   MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
-  MPI_Comm_size(MPI_COMM_WORLD, &mpi_size);
 
   // go thru each dimensions incoming neighbors, and add the dependencies
   int num_depends = 0;
-  int num_request = 0;
   for(int dim = 0;dim < 3;++ dim){
     // If it's a boundary condition, skip it
     if(task.incoming[dim][1] < 0){
@@ -95,12 +85,9 @@ void ParallelComm::postRecvs(int task_id, Task &task){
       num_depends ++;
       continue;
     }
-    // Add request to pending list
-    recv_requests[3* task_id + dim] = MPI_Request();
-   // recv_tasks.push_back(task_id);
-   // request_index.push_back(recv_requests.size()-1);
+    // Change the flag for already completed to false
     already_completed[3*task_id + dim] = false;
-   // already_completed.push_back(false);
+
     // compute the tag id of THIS task (tags are always based on destination)
      int tag = computeTag(mpi_rank, task_id);
     // Post the recieve
@@ -110,20 +97,16 @@ void ParallelComm::postRecvs(int task_id, Task &task){
 
     // increment number of dependencies
     num_depends ++;
-    num_request ++;
   }
 
   // add task to queue
-  queue_task_ids.push_back(task_id);
-  //queue_tasks.push_back(&task);
-  queue_depends.push_back(num_depends);
+  queue_depends[task_id] = num_depends;
 }
 
 void ParallelComm::postSends(Task *task, double *src_buffers[3]){
   // post sends for outgoing dependencies
-  int mpi_rank, mpi_size;
+  int mpi_rank;
   MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
-  MPI_Comm_size(MPI_COMM_WORLD, &mpi_size);
   for(int dim = 0;dim < 3;++ dim){
     // If it's a boundary condition, fill plane data with BC's
     if(task->outgoing[dim][1] < 0){
@@ -144,15 +127,12 @@ void ParallelComm::postSends(Task *task, double *src_buffers[3]){
     }
 
     // At this point, we know that we have to send an MPI message
-    // Add request to send queue
-    send_requests.push_back(MPI_Request());
-
     // compute the tag id of TARGET task (tags are always based on destination)
     int tag = computeTag(task->outgoing[dim][1], task->outgoing[dim][2]);
 
     // Post the send
     MPI_Irsend(src_buffers[dim], task->plane_data[dim].size(), MPI_DOUBLE, task->outgoing[dim][1],
-      tag, MPI_COMM_WORLD, &send_requests[send_requests.size()-1]);
+      tag, MPI_COMM_WORLD, &send_requests[task->task_id + dim]);
   }
 }
 
@@ -185,7 +165,8 @@ void ParallelComm::testRecieves(int task_id, bool wait){
 
 void ParallelComm::markComplete(int task_id){
   // Get task pointer and remove from work queue
-  Task *task = dequeueTask(task_id);
+ // Task *task = dequeueTask(task_id);
+  Task *task = all_tasks[task_id];
 
   // Send new outgoing info for sweep
   double *buf[3] = {
@@ -198,7 +179,8 @@ void ParallelComm::markComplete(int task_id){
 
 void ParallelComm::WaitforReady(int task_id){
   // Check to see if this task is ready
- // int index = findTask(task_id);
+  int mpi_rank;
+  MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
   bool ready = false;
   if(queue_depends[task_id] == 0)
     ready = true;
@@ -214,12 +196,8 @@ void ParallelComm::WaitforReady(int task_id){
 }
 
 void ParallelComm::CleanUp(){
-  queue_task_ids.clear();
-  queue_tasks.clear();
   queue_depends.clear();
   recv_requests.clear();
-  recv_tasks.clear();
-  request_index.clear();
   send_requests.clear();
   already_completed.clear();
 }
