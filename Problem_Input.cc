@@ -18,6 +18,7 @@ Problem_Input::Problem_Input()
   num_sweeps = 5;
   partition_type = 0;
   MPI_Comm_size(MPI_COMM_WORLD, &num_SML);
+  bcs = 2;
 
   partition_bool = false;
 }
@@ -82,7 +83,6 @@ void Problem_Input::ProcessInput(std::ifstream& input, std::ofstream& fout)
               z_planes = atoi(inpL[2].c_str());
             if (inpL[0] == "refinement")
               refinement = atoi(inpL[2].c_str());
-            bcs = 2;
             if (inpL[0] == "bc")
               bcs = atoi(inpL[2].c_str());
 
@@ -372,11 +372,11 @@ void Problem_Input::CheckProblemInput()
     MPI_Abort(MPI_COMM_WORLD,1);
   }
   // Check that the number of angles per angleset is an integer
-  if(ang_agg_type == 2 && !(num_polar/2 == (int)num_polar/2)){
+  if(num_polar%2){
     if (rank == 0){ std::cout << "Invalid Polar Aggregation" << std::endl; }
     MPI_Abort(MPI_COMM_WORLD,1);
   }
-  if(!(num_azim/4 == (int)num_azim/4)){
+  if(num_azim%4){
     if (rank == 0){ std::cout << "Invalid Number of Azimuthal Angles" << std::endl; }
     MPI_Abort(MPI_COMM_WORLD,1);
   }

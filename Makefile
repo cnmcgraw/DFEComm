@@ -3,11 +3,12 @@
 CC     = g++ -std=c++11 -g     # the c compiler to use
 MPICC  = mpig++ # the MPI cc compiler
 CFLAGS = -O3 # optimize code
+DFLAGS = -O0 # non-optimized version
 DEPFILE	= .depends
 DEPTOKEN	= '\# MAKEDEPENDS'
 DEPFLAGS	= -Y -f $(DEPFILE) -s $(DEPTOKEN) -p 
 
-# SRCS	 = Problem_Input.cc Quadrature.cc Cell.cc CellSet.cc Subdomain.cc Problem.cc Sweep_Mini_App.cc
+# SRCS	 = Problem_Input.cc Quadrature.cc Cell.cc CellSet.cc Subdomain.cc Problem.cc ParallelComm.cc Task.cc Sweep_Mini_App.cc
  SRCS	= *.cc
  OBJS	 = $(SRCS:.c=.o)
  OBJS_O	= $(foreach obj, $(OBJS), $(obj) )
@@ -16,7 +17,6 @@ DEPFLAGS	= -Y -f $(DEPFILE) -s $(DEPTOKEN) -p
 	$(MPICC)-o DFEComm $(CFLAGS) $(SRCS)
 	
  depend:
-	rm -f $(DEPFILE)
 	make $(DEPFILE)
 
  $(DEPFILE):
@@ -30,7 +30,7 @@ DEPFLAGS	= -Y -f $(DEPFILE) -s $(DEPTOKEN) -p
 	rm DFEComm
 	
  debug: depend $(SRCS)
-	$(MPICC) -o DFEComm -g $(CFLAGS) $(DFLAGS) $(SRCS)
+	$(MPICC) -o DFEComm -g $(DFLAGS) $(SRCS)
  
 
  # put this file in the last line of your Makefile

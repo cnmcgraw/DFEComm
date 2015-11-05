@@ -23,7 +23,7 @@ public:
 	int refinement;
 	int sp_disc;
 	int bcs;
-	//Subdomain* subdomain;
+
 	// Angular Data
 	int num_polar, num_azim;
 	int ang_agg_type;
@@ -52,6 +52,9 @@ public:
 
 	// Zeroes out the phi vector before each sweep.
 	void ZeroPhi();
+  
+  // Computes the average phi and standard deviation of phi 
+  void ComputePhi();
 
 private:
 	// Matrices to invert during the sweep
@@ -66,7 +69,6 @@ private:
 	Direction omega,facecenter;
 	double sigma_t, cell_average;
 	int num_tasks;
-  std::vector<int> Task_IDs;
 
 	int GetCell(int, int, int, int, int, int, int);
 

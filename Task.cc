@@ -84,10 +84,6 @@ int Task::ComputeTaskID(int cs, int as, int gs){
   return task_id;
 }
 
-void Task::SetIndex(int i){
-  index = i;
-}
-
 void Task::SetBoundaryConditions(Problem* problem)
 {
   int rank;

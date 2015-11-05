@@ -279,7 +279,7 @@ void CellSet::GetNeighborsSML(int CS_ID, Problem* problem)
     {
       // If this is a boundary, set the neighbor SML to 
       // this SML's id * -1
-      MPI_Comm_rank(MPI_COMM_WORLD, &neighbors[i].SML);
+     // MPI_Comm_rank(MPI_COMM_WORLD, &neighbors[i].SML);
       neighbors[i].SML = -1;
     }
     else

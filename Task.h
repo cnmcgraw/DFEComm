@@ -55,9 +55,6 @@ public:
 	// Allocate the send buffers
 	void AllocateBuffers(void);
 
-  // Sets the index in the AllTasks array
-  void SetIndex(int i);
-
 	// Set functions for the X, Y, and Z buffers
 	void Set_buffer(int, int, int, int, int, int, int, vector<double>&);
 	void Get_buffer(int, int, int, int, int, int, vector<double>&);

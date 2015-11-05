@@ -89,13 +89,11 @@ void Problem::BuildProblem(Problem_Input* input)
   // Build the task vector
   // The size is # Anglesets * # Groupsets * # Cellsets on this SML
   num_tasks = quad.num_angleset*num_groupsets*subdomain.total_overload;
- // All_Tasks.resize(num_tasks);
+
   int task_num = 0;
   int octant = -1;
 
   comm.setSizes(subdomain.total_overload, quad.num_angleset, num_groupsets);
-
-  Task_IDs.resize(num_tasks);
 
   for (int i = 0; i < subdomain.total_overload; i++)
   {
@@ -114,13 +112,10 @@ void Problem::BuildProblem(Problem_Input* input)
 
   // Now we order the All_Tasks vector by depth, then angleset, then groupset
   std::sort(All_Tasks.begin(), All_Tasks.end(), by_depth());
-  for(int i = 0 ; i < All_Tasks.size(); i++){
-    Task_IDs[All_Tasks[i].task_id] = i;
-  }
+
   
     // Give pointers to the tasks to the comm (so we can figure out neighbors)
   for(int i = 0; i < num_tasks; i++){
-    All_Tasks[i].SetIndex(i);
     comm.SetTask(&(All_Tasks[i]));
   }
 
@@ -151,9 +146,8 @@ void Problem::Sweep(std::ofstream &output)
   long double duration_task(0), duration_innertask(0), duration_cell(0);
   long double duration_wait(0), duration_send(0);
   // First off we need to add all the tasks to the comm:
-  for(int i = 0; i < Task_IDs.size(); i++){
-    int index = Task_IDs[i];
-    comm.addTask(All_Tasks[index].task_id, All_Tasks[index]);
+  for(int i = 0; i < All_Tasks.size(); i++){
+    comm.addTask(All_Tasks[i].task_id, All_Tasks[i]);
   }
   // Necessary temporary data structures for the sweep
   std::vector<int> cell_ijk(3, 0);
@@ -272,6 +266,7 @@ void Problem::Sweep(std::ofstream &output)
                   }
                 }
               }
+          
               // Add the contribution to the A matrix and the RHS vector
               for (int a = 0; a < 4; a++)
               {
@@ -330,9 +325,11 @@ void Problem::Sweep(std::ofstream &output)
     printf("          Wait: %Lf\n", duration_wait);
     printf("          Send: %LF\n", duration_send);
     printf("             \n");
+    ComputePhi();
+    std::cout << "=============================" << std::endl;
   }
 
-  comm.CleanUp();
+  //comm.CleanUp();
 }
 
 int Problem::GetCell(int i, int j, int k, int cells_x, int cells_y, int cells_z, int octant)
@@ -427,3 +424,56 @@ void Problem::ZeroPhi()
     }
   }
 }
+
+void Problem::ComputePhi()
+{
+
+  // First compute the average phi across the problem for all groups
+  std::vector<double> phi_average(4,0);
+  std::vector<double> phi_stddev(4,0);
+  int size = 0;
+  for (int i = 0; i < subdomain.CellSets.size(); i++)
+  {
+    // Loop through cells in this cellset
+    for (int j = 0; j < subdomain.CellSets[i].Cells.size(); j++)
+    { 
+      for (int index = 0; index < num_groupsets*group_per_groupset; index++)
+      {
+        phi_average[0] += subdomain.CellSets[i].Cells[j].phi[4*index];
+        phi_average[1] += subdomain.CellSets[i].Cells[j].phi[4*index+1];
+        phi_average[2] += subdomain.CellSets[i].Cells[j].phi[4*index+2];
+        phi_average[3] += subdomain.CellSets[i].Cells[j].phi[4*index+3];
+        
+        phi_stddev[0] += pow(subdomain.CellSets[i].Cells[j].phi[4*index] - 7./3.,2);
+        phi_stddev[1] += pow(subdomain.CellSets[i].Cells[j].phi[4*index+1],2);
+        phi_stddev[2] += pow(subdomain.CellSets[i].Cells[j].phi[4*index+2],2);
+        phi_stddev[3] += pow(subdomain.CellSets[i].Cells[j].phi[4*index+3],2);        
+        size += 1;        
+      }
+    }
+  }
+  phi_average[0] /= size;
+  phi_average[1] /= size;
+  phi_average[2] /= size;
+  phi_average[3] /= size;
+  
+  phi_stddev[0] = sqrt(phi_stddev[0]/size);
+  phi_stddev[1] = sqrt(phi_stddev[1]/size);
+  phi_stddev[2] = sqrt(phi_stddev[2]/size);
+  phi_stddev[3] = sqrt(phi_stddev[3]/size);  
+
+  std::cout << "Average Phi: " << std::endl;
+  std::cout << "       Phi : " << phi_average[0] << std::endl;
+  std::cout << "   DPhi/Dx : " << phi_average[1] << std::endl;
+  std::cout << "   DPhi/Dy : " << phi_average[2] << std::endl;
+  std::cout << "   DPhi/Dz : " << phi_average[3] << std::endl; 
+  std::cout << "\n" ;    
+  std::cout << "Standard Deviation: " << std::endl;
+  std::cout << "       Phi : " << phi_stddev[0] << std::endl;
+  std::cout << "   DPhi/Dx : " << phi_stddev[1] << std::endl;
+  std::cout << "   DPhi/Dy : " << phi_stddev[2] << std::endl;
+  std::cout << "   DPhi/Dz : " << phi_stddev[3] << std::endl; 
+  std::cout << "\n" ;  
+
+}
+

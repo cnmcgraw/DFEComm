@@ -47,7 +47,7 @@ void ParallelComm::computeRankTask(int tag, int &mpi_rank, int &task_id){
 
 /**
   Adds a task to the work queue.
-  Determines if incoming dependencies require communication, and posts appropirate Irecv's.
+  Determines if incoming dependencies require communication, and posts appropriate Irecv's.
 */
 void ParallelComm::addTask(int task_id, Task &task){
   // Post recieves for incoming dependencies, and add to the queue
@@ -77,6 +77,7 @@ void ParallelComm::postRecvs(int task_id, Task &task){
   for(int dim = 0;dim < 3;++ dim){
     // If it's a boundary condition, skip it
     if(task.incoming[dim][1] < 0){
+      task.Get_buffer_from_bc(dim);
       continue;
     }
     // If it's an on-rank communication (from another Task)
@@ -110,7 +111,7 @@ void ParallelComm::postSends(Task *task, double *src_buffers[3]){
   for(int dim = 0;dim < 3;++ dim){
     // If it's a boundary condition, fill plane data with BC's
     if(task->outgoing[dim][1] < 0){
-      task->Get_buffer_from_bc(dim);
+ //     task->Get_buffer_from_bc(dim);
       continue;
     }
 
@@ -141,7 +142,6 @@ void ParallelComm::postSends(Task *task, double *src_buffers[3]){
   Checks for incomming messages, and does relevant bookkeeping.
 */
 void ParallelComm::testRecieves(int task_id, bool wait){
-
 
   int complete_flag = 0;
   std::vector<MPI_Status> recv_status(3);
