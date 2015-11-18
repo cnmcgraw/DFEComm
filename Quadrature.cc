@@ -20,7 +20,7 @@ void Quadrature::BuildQuadrature(Problem_Input* input)
 
 	// Resize all the vectors
 	Omegas.resize(num_angles);
-	Weights.resize(num_angles, 1./num_angles);
+	Weights.resize(num_angles, 1./double(num_angles));
 
 	// Since the answer doesn't matter, make Mu and Theta equally spaced
 	double mu, theta;
@@ -29,8 +29,8 @@ void Quadrature::BuildQuadrature(Problem_Input* input)
 	{
 		for(int j=0; j<num_polar/2; j++, id++)
 		{
-			mu = j*PI/num_polar - PI/2 + PI/(2*num_polar);
-			theta = i*2*PI/num_azim + PI/(2*num_azim);
+			mu = j*PI/num_polar - PI/2. + PI/(2.*num_polar);
+			theta = i*2.*PI/num_azim + PI/(2.*num_azim);
 			Omegas[id].x = cos(mu)*cos(theta);
 			Omegas[id].y = cos(mu)*sin(theta);
 			Omegas[id].z = sin(mu);
@@ -40,8 +40,8 @@ void Quadrature::BuildQuadrature(Problem_Input* input)
 	{
 		for (int j = num_polar/2; j<num_polar; j++, id++)
 		{
-			mu = j*PI / num_polar + PI / (2 * num_polar);
-			theta = i * 2 * PI / num_azim + PI / (2 * num_azim);
+			mu = j*PI / num_polar + PI / (2. * num_polar);
+			theta = i * 2. * PI / num_azim + PI / (2. * num_azim);
 			Omegas[id].x = cos(mu)*cos(theta);
 			Omegas[id].y = cos(mu)*sin(theta);
 			Omegas[id].z = sin(mu);

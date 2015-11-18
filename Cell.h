@@ -94,11 +94,11 @@ public:
 	double GetDeltaY(){ return delta_y; };
 	double GetDeltaZ(){ return delta_z; };
 
-	
+	std::vector<int> localijk;
 
 private:
 	int cells_per_cellset;
-	std::vector<int> localijk;
+	
 	int cells_x, cells_y, cells_z;
 	std::vector<int> num_cellsets;
 

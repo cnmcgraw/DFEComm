@@ -19,8 +19,8 @@ void Cell::BuildCell(int Local_ID, int CS_ID, Problem* problem)
 
 	// Set delta_x, delta_y, and delta_z from problem
 	// pin pitch = 4.0, total height = 4 cm
-	delta_x = 4.0/(problem->refinement*2);
-	delta_y = 4.0/(problem->refinement*2);
+	delta_x = 4.0/(problem->refinement*2.);
+	delta_y = 4.0/(problem->refinement*2.);
 	delta_z = 4.0/problem->z_planes;
 
 	// Set cross section and source
@@ -210,12 +210,12 @@ void Cell::GetFaceNormals()
 		normals[i].y = 0;
 		normals[i].z = 0;
 	}
-	normals[0].x = 1;
-	normals[1].x = -1;
-	normals[2].y = 1;
-	normals[3].y = -1;
-	normals[4].z = 1;
-	normals[5].z = -1;
+	normals[0].x = 1.;
+	normals[1].x = -1.;
+	normals[2].y = 1.;
+	normals[3].y = -1.;
+	normals[4].z = 1.;
+	normals[5].z = -1.;
 }
 
 void Cell::GetFaceCenters()
@@ -228,19 +228,19 @@ void Cell::GetFaceCenters()
 		facecenters[i].y = 0;
 		facecenters[i].z = 0;
 	}
-	facecenters[0].x = delta_x/2;
-	facecenters[1].x = -delta_x/2;
-	facecenters[2].y = delta_y/2;
-	facecenters[3].y = -delta_y/2;
-	facecenters[4].z = delta_z/2;
-	facecenters[5].z = -delta_z/2;
+	facecenters[0].x = delta_x/2.;
+	facecenters[1].x = -delta_x/2.;
+	facecenters[2].y = delta_y/2.;
+	facecenters[3].y = -delta_y/2.;
+	facecenters[4].z = delta_z/2.;
+	facecenters[5].z = -delta_z/2.;
 }
 
 void Cell::ComputeDFEMMatrices()
 {
 	// M is the mass matrix
 	M.resize(4);
-	M[0] = 1;
+	M[0] = delta_x*delta_y*delta_z;
 	M[1] = (1/12)*delta_x*delta_y*delta_z;
 	M[2] = (1/12)*delta_x*delta_y*delta_z;
 	M[3] = (1/12)*delta_x*delta_y*delta_z;
@@ -253,8 +253,8 @@ void Cell::ComputeDFEMMatrices()
 	N[0][0][1].x = delta_y*delta_z;
 	N[0][1][0].x = delta_y*delta_z;
 	N[0][1][1].x = delta_y*delta_z;
-	N[0][2][2].x = delta_y*delta_z/12;
-	N[0][3][3].x = delta_y*delta_z/12;
+	N[0][2][2].x = delta_y*delta_z/12.;
+	N[0][3][3].x = delta_y*delta_z/12.;
 
 	// Face 1: e_n = (-1, 0, 0)
 	for(int i=0; i< N[1].size(); i++)
@@ -263,17 +263,17 @@ void Cell::ComputeDFEMMatrices()
 		{
 			N[1][i][j].x = N[0][i][j].x;
 			if(i == j)
-				N[1][i][j].x *= -1;
+				N[1][i][j].x *= -1.;
 		}
 	}
 
 	// Face 2: e_n = (0, 1, 0)
 	N[2][0][0].y = delta_x*delta_z;
 	N[2][0][1].y = delta_x*delta_z;
-	N[2][1][1].y = delta_x*delta_z/12;
+	N[2][1][1].y = delta_x*delta_z/12.;
 	N[2][2][0].y = delta_x*delta_z;
 	N[2][2][2].y = delta_x*delta_z;
-	N[2][3][3].y = delta_x*delta_z/12;
+	N[2][3][3].y = delta_x*delta_z/12.;
 	
 	// Face 3: e_n = (0, -1, 0)
 	for(int i=0; i< N[3].size(); i++)
@@ -282,15 +282,15 @@ void Cell::ComputeDFEMMatrices()
 		{
 			N[3][i][j].y = N[2][i][j].y;
 			if(i == j)
-				N[3][i][j].y *= -1;
+				N[3][i][j].y *= -1.;
 		}
 	}
 
 	// Face 4: e_n = (0, 0, 1)
 	N[4][0][0].z = delta_x*delta_y;
 	N[4][0][1].z = delta_x*delta_y;
-	N[4][1][1].z = delta_x*delta_y/12;
-	N[4][2][2].z = delta_x*delta_y/12;
+	N[4][1][1].z = delta_x*delta_y/12.;
+	N[4][2][2].z = delta_x*delta_y/12.;
 	N[4][3][0].z = delta_x*delta_y;
 	N[4][3][3].z = delta_x*delta_y;
 
@@ -301,7 +301,7 @@ void Cell::ComputeDFEMMatrices()
 		{
 			N[5][i][j].z = N[4][i][j].z;
 			if(i == j)
-				N[5][i][j].z *= -1;
+				N[5][i][j].z *= -1.;
 		}
 	}
 

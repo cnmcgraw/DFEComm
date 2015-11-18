@@ -443,12 +443,7 @@ void Problem::ComputePhi()
         phi_average[1] += subdomain.CellSets[i].Cells[j].phi[4*index+1];
         phi_average[2] += subdomain.CellSets[i].Cells[j].phi[4*index+2];
         phi_average[3] += subdomain.CellSets[i].Cells[j].phi[4*index+3];
-        
-        phi_stddev[0] += pow(subdomain.CellSets[i].Cells[j].phi[4*index] - 7./3.,2);
-        phi_stddev[1] += pow(subdomain.CellSets[i].Cells[j].phi[4*index+1],2);
-        phi_stddev[2] += pow(subdomain.CellSets[i].Cells[j].phi[4*index+2],2);
-        phi_stddev[3] += pow(subdomain.CellSets[i].Cells[j].phi[4*index+3],2);        
-        size += 1;        
+        size += 1;
       }
     }
   }
@@ -456,6 +451,22 @@ void Problem::ComputePhi()
   phi_average[1] /= size;
   phi_average[2] /= size;
   phi_average[3] /= size;
+  
+  // Now compute the standard deviation of phi across the problem for all groups
+  for (int i = 0; i < subdomain.CellSets.size(); i++)
+  {
+    // Loop through cells in this cellset
+    for (int j = 0; j < subdomain.CellSets[i].Cells.size(); j++)
+    { 
+      for (int index = 0; index < num_groupsets*group_per_groupset; index++)
+      {
+        phi_stddev[0] += pow(subdomain.CellSets[i].Cells[j].phi[4*index] - phi_average[0],2);
+        phi_stddev[1] += pow(subdomain.CellSets[i].Cells[j].phi[4*index+1]- phi_average[1],2);
+        phi_stddev[2] += pow(subdomain.CellSets[i].Cells[j].phi[4*index+2]- phi_average[2],2);
+        phi_stddev[3] += pow(subdomain.CellSets[i].Cells[j].phi[4*index+3]- phi_average[3],2);        
+      }
+    }
+  }
   
   phi_stddev[0] = sqrt(phi_stddev[0]/size);
   phi_stddev[1] = sqrt(phi_stddev[1]/size);
