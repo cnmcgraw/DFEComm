@@ -134,6 +134,10 @@ void ParallelComm::postSends(Task *task, double *src_buffers[3]){
     // Post the send
     MPI_Irsend(src_buffers[dim], task->plane_data[dim].size(), MPI_DOUBLE, task->outgoing[dim][1],
       tag, MPI_COMM_WORLD, &send_requests[task->task_id + dim]);
+      
+    int complete_flag = 0;
+    MPI_Status status;
+    MPI_Test(&send_requests[task->task_id + dim], &complete_flag, &status);
   }
 }
 

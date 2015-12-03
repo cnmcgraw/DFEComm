@@ -241,9 +241,9 @@ void Cell::ComputeDFEMMatrices()
 	// M is the mass matrix
 	M.resize(4);
 	M[0] = delta_x*delta_y*delta_z;
-	M[1] = (1/12)*delta_x*delta_y*delta_z;
-	M[2] = (1/12)*delta_x*delta_y*delta_z;
-	M[3] = (1/12)*delta_x*delta_y*delta_z;
+	M[1] = (1./12.)*delta_x*delta_y*delta_z;
+	M[2] = (1./12.)*delta_x*delta_y*delta_z;
+	M[3] = (1./12.)*delta_x*delta_y*delta_z;
 
 	// N is the surface matrix. The first dimension is the face
 	// Each face as a 4x4 matrix of (x,y,z) components

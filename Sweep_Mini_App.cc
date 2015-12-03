@@ -6,6 +6,7 @@
 #include <ctime>
 #include "Problem_Input.h"
 #include "Problem.h"
+#include <math.h>
 //#include <mpi.h>
 
 using std::string;
@@ -192,7 +193,7 @@ int main(int argc, char **argv)
     
     int total_cells = 4*problem->refinement*problem->refinement*problem->z_planes*problem->num_pin_x*problem->num_pin_y;
     int cells_per_SML = total_cells/problem->num_SML;
-    int unknowns_per_SML = cells_per_SML*problem->num_polar*problem->num_azim*problem->group_per_groupset*problem->group_per_groupset;
+    int unknowns_per_SML = cells_per_SML*problem->num_polar*problem->num_azim*8*problem->group_per_groupset*problem->group_per_groupset;
     int ang_task_num = 0;
     if(problem->ang_agg_type == 1)
       ang_task_num = problem->num_polar*problem->num_azim;
@@ -234,6 +235,8 @@ int main(int argc, char **argv)
   double start;
   long double duration, total_duration;
   total_duration = 0;
+  std::vector<long double> sweep_duration (input_data->num_sweeps,0.0);
+  long double std_dev(0.0);
   MPI_Barrier(MPI_COMM_WORLD);
   for (int i = 0; i < input_data->num_sweeps; i++)
   {   
@@ -242,16 +245,22 @@ int main(int argc, char **argv)
     if (rank == 0){ output << "  SWEEP " << i + 1 << std::endl; }
     problem->Sweep(output);
     MPI_Barrier(MPI_COMM_WORLD);
-    duration = (MPI_Wtime() - start); // / (double)CLOCKS_PER_SEC;
+    sweep_duration[i] = (MPI_Wtime() - start); // / (double)CLOCKS_PER_SEC;
     if (rank == 0){
-      output << "  Sweep " << i + 1 << " took " << duration << " seconds." << std::endl;
+      output << "  Sweep " << i + 1 << " took " << sweep_duration[i] << " seconds." << std::endl;
       output << " " << std::endl;
     }
-    total_duration += duration;
+    total_duration += sweep_duration[i];
   }
   total_duration = total_duration / input_data->num_sweeps;
+  for (int i = 0; i < input_data->num_sweeps; i++)
+  {  
+      std_dev += pow(total_duration - sweep_duration[i],2);
+  }
+  std_dev = sqrt(std_dev / input_data->num_sweeps);
   if (rank == 0){
     output << "Average Sweep Time: " << total_duration << " seconds." << std::endl;
+    output << "Standard Deviation: " << std_dev << " seconds. " << std::endl;
   }
 
   MPI_Finalize();

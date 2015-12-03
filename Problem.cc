@@ -135,7 +135,7 @@ void Problem::BuildProblem(Problem_Input* input)
 
   // Resize the source. Piece-wise constant in each cell
   source.resize(4);
-  source[0] = 1;
+ // source[0] = 1.;
   
 }
 
@@ -272,8 +272,9 @@ void Problem::Sweep(std::ofstream &output)
               {
                 for (int b = 0; b < 4; b++)
                 {
-                  A[a][b] = A_tilde[a][b] + sigma_t * M[a];  
+                  A[a][b] = A_tilde[a][b];  
                 }
+                A[a][a] += sigma_t * M[a];
               }
 
               // Solve A^-1*RHS with Gaussian Elimination and store it in RHS (4 = number of elements)

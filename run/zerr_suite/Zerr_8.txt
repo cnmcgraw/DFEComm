@@ -31,5 +31,5 @@ func_z = 1
 overload_z = 16
 num_cellsets_z = 32
 
-num_sweeps = 5
+num_sweeps = 1
 

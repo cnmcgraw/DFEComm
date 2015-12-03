@@ -103,7 +103,6 @@ private:
 	std::vector<int> num_cellsets;
 
 	// Geometry data
-	// For 2D problems, delta_z = 1
 	double delta_x, delta_y, delta_z;
 
 	double sigma_t;
