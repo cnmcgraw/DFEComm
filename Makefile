@@ -15,7 +15,7 @@ DEPFLAGS	= -Y -f $(DEPFILE) -s $(DEPTOKEN) -p
 
  all: depend $(SRCS)
 	$(MPICC) -c  $(CFLAGS) $(SRCS)
-	$(MPICC) -o DFEComm -L /usr/gapps/tamu/bgqos_0/gperftools-2.4-gcc-4.8.4/lib -ltcmalloc_minimal $(OBJS)
+	$(MPICC) -o SimpleLD -L /usr/gapps/tamu/bgqos_0/gperftools-2.4-gcc-4.8.4/lib -ltcmalloc_minimal $(OBJS)
  depend:
 	make $(DEPFILE)
 
@@ -27,10 +27,10 @@ DEPFLAGS	= -Y -f $(DEPFILE) -s $(DEPTOKEN) -p
  
  clean:
 	rm -f $(DEPFILE)
-	rm DFEComm
+	rm SimpleLD
 	
  debug: depend $(SRCS)
-	$(MPICC) -o DFEComm -g $(DFLAGS) $(SRCS)
+	$(MPICC) -o SimpleLD -g $(DFLAGS) $(SRCS)
  
 
  # put this file in the last line of your Makefile
