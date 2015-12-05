@@ -145,6 +145,10 @@ void Problem::Sweep(std::ofstream &output)
   double start_task, start_cell, start_wait, start_send;
   long double duration_task(0), duration_innertask(0), duration_cell(0);
   long double duration_wait(0), duration_send(0);
+  double start_loop, start_angle, start_group;
+  long double duration_loop(0), total_duration_loop(0);
+  long double duration_angle(0), duration_group(0);
+
   // First off we need to add all the tasks to the comm:
   for(int i = 0; i < All_Tasks.size(); i++){
     comm.addTask(All_Tasks[i].task_id, All_Tasks[i]);
@@ -154,12 +158,6 @@ void Problem::Sweep(std::ofstream &output)
   std::vector<double> temp_solve(4, 0);
   Neighbor neighbor;
   int task_it(0), recv(0), target(0);
-
-  double start_loop, start_angle, start_group;
-  long double duration_loop;
-  long double total_duration_loop;
-  long double duration_angle(0), duration_group(0);
-  total_duration_loop = 0;
 
   // Loop through task list
   std::vector<Task>::iterator it = All_Tasks.begin();
@@ -204,12 +202,9 @@ void Problem::Sweep(std::ofstream &output)
           N = subdomain.CellSets[(*it).cellset_id_loc].Cells[cell_id].N;
           L = subdomain.CellSets[(*it).cellset_id_loc].Cells[cell_id].L;
    
-
-
           // Since the source is piece-wise constant, we only need to update the average value
           source[0] = my_cell.GetSource();
 
-          
           // Loop over angles in the angleset
           for (int m = 0; m < angle_per_angleset; m++)
           {
@@ -223,8 +218,7 @@ void Problem::Sweep(std::ofstream &output)
             {
               for (int b = 0; b < 4; b++)
               {
-   //             A_tilde[a][b] = dot(omega, L[a][b]);
-                A_tilde[a][b] = omega.x * L[a][b].x + omega.y * L[a][b].y + omega.z * L[a][b].z;
+                A_tilde[a][b] = dot(omega, L[a][b]);
               }
               RHS[a] = M[a] * source[a];
             }
@@ -236,8 +230,7 @@ void Problem::Sweep(std::ofstream &output)
               {
                 for (int b = 0; b < 4; b++)
                 {
-   //               A_tilde[a][b] += dot(-1 * omega, N[incoming[f][0]][a][b]);
-                    A_tilde[a][b] +=  (-1 * omega.x * N[incoming[f][0]][a][b].x + -1 * omega.y * N[incoming[f][0]][a][b].y  + -1 * omega.z * N[incoming[f][0]][a][b].z);
+                  A_tilde[a][b] += dot(-1 * omega, N[incoming[f][0]][a][b]);
                 }
               }            
             }
