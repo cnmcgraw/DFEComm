@@ -1,37 +1,36 @@
-# prompt> make
-#
-CC     = g++ -std=c++11 -g     # the c compiler to use
-MPICC  = mpig++-4.8.4 # the MPI cc compiler
-CFLAGS = -O3 # optimize code
+MPICXX = mpig++-4.8.4
+#MPICXX  = mpixlcxx-12.1.0.13 
+CXXFLAGS = -Ofast -ffast-math -ftree-vectorize # optimize code
+#CXXFLAGS =  -O5 -qhot -qsimd=auto -qarch=qp -qlist
+LIBS = -L /usr/gapps/tamu/bgqos_0/gperftools-2.4-gcc-4.8.4/lib -ltcmalloc_minimal
 DFLAGS = -O0 # non-optimized version
 DEPFILE	= .depends
 DEPTOKEN	= '\# MAKEDEPENDS'
 DEPFLAGS	= -Y -f $(DEPFILE) -s $(DEPTOKEN) -p 
+SRCS	= *.cc
+OBJS	 = $(SRCS:.cc=.o)
+OBJS_O	= $(foreach obj, $(OBJS), $(obj) )
 
-# SRCS	 = Problem_Input.cc Quadrature.cc Cell.cc CellSet.cc Subdomain.cc Problem.cc ParallelComm.cc Task.cc Sweep_Mini_App.cc
- SRCS	= *.cc
- OBJS	 = $(SRCS:.cc=.o)
- OBJS_O	= $(foreach obj, $(OBJS), $(obj) )
+all: depend $(SRCS)
+	$(MPICXX) $(CXXFLAGS) -c $(SRCS)
+	$(MPICXX) $(CXXFLAGS) -o SimpleLD $(OBJS) $(LIBS)
 
- all: depend $(SRCS)
-	$(MPICC) -c  $(CFLAGS) $(SRCS)
-	$(MPICC) -o SimpleLD -L /usr/gapps/tamu/bgqos_0/gperftools-2.4-gcc-4.8.4/lib -ltcmalloc_minimal $(OBJS)
- depend:
+depend:
 	make $(DEPFILE)
 
- $(DEPFILE):
+$(DEPFILE):
 	@echo $(DEPTOKEN) > $(DEPFILE)
-	makedepend $(DEPFLAGS) -- $(CFLAGS) -- $(SRC) >&/dev/null
+	makedepend $(DEPFLAGS) -- $(CXXFLAGS) -- $(SRC) >&/dev/null
 	
- $(SRCS): 
+$(SRCS): 
  
- clean:
+clean:
 	rm -f $(DEPFILE)
-	rm SimpleLD
+	rm -f SimpleLD
 	
- debug: depend $(SRCS)
-	$(MPICC) -o SimpleLD -g $(DFLAGS) $(SRCS)
+debug: depend $(SRCS)
+	$(MPICXX) -o SimpleLD -g $(DFLAGS) $(SRCS)
  
 
- # put this file in the last line of your Makefile
- sinclude $(DEPFILE)
+# put this file in the last line of your Makefile
+sinclude $(DEPFILE)

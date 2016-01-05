@@ -129,13 +129,8 @@ void Problem::BuildProblem(Problem_Input* input)
   RHS.resize(4);
   bg.resize(4);
 
-  M.resize(4);
-  N.resize(6, vector<vector<Direction > >(4, vector< Direction >(4)));
-  L.resize(4, vector<Direction >(4));
-
   // Resize the source. Piece-wise constant in each cell
   source.resize(4);
- // source[0] = 1.;
   
 }
 
@@ -143,12 +138,11 @@ void Problem::Sweep(std::ofstream &output)
 {
   // Timers
   double start_task, start_cell, start_wait, start_send;
-  long double duration_task(0), duration_innertask(0), duration_cell(0);
-  long double duration_wait(0), duration_send(0);
   double start_loop, start_angle, start_group;
-  long double duration_loop(0), total_duration_loop(0);
-  long double duration_angle(0), duration_group(0);
-
+  long double duration_task(0), duration_cell(0);
+  long double duration_wait(0), duration_send(0);
+  long double total_duration_loop(0), duration_angle(0), duration_group(0);
+  
   // First off we need to add all the tasks to the comm:
   for(int i = 0; i < All_Tasks.size(); i++){
     comm.addTask(All_Tasks[i].task_id, All_Tasks[i]);
@@ -158,6 +152,20 @@ void Problem::Sweep(std::ofstream &output)
   std::vector<double> temp_solve(4, 0);
   Neighbor neighbor;
   int task_it(0), recv(0), target(0);
+  
+  // Cell Loop
+  int cells_x, cells_y, cells_z;
+  int cell_per_cellset, angle_per_angleset, octant;
+  vector<vector<int> > incoming, outgoing;
+  int if1, if2, if3, of1, of2, of3;
+  
+  // Angle Loop
+  int cell_id, cijk0, cijk1, cijk2;
+  double ox, oy, oz;
+  
+  // Group Loop
+  int index;
+  double wt;
 
   // Loop through task list
   std::vector<Task>::iterator it = All_Tasks.begin();
@@ -167,15 +175,17 @@ void Problem::Sweep(std::ofstream &output)
     start_loop = MPI_Wtime();
 
     // Get cellset and angleset information
-    int cells_x = subdomain.CellSets[(*it).cellset_id_loc].cells_x;
-    int cells_y = subdomain.CellSets[(*it).cellset_id_loc].cells_y;
-    int cells_z = subdomain.CellSets[(*it).cellset_id_loc].cells_z;
-    int cell_per_cellset = (*it).cell_per_cellset;
-    int angle_per_angleset = (*it).angle_per_angleset;
+    cells_x = subdomain.CellSets[(*it).cellset_id_loc].cells_x;
+    cells_y = subdomain.CellSets[(*it).cellset_id_loc].cells_y;
+    cells_z = subdomain.CellSets[(*it).cellset_id_loc].cells_z;
+    cell_per_cellset = (*it).cell_per_cellset;
+    angle_per_angleset = (*it).angle_per_angleset;
     
-    int octant = quad.Anglesets[(*it).angleset_id].octant;
-    vector<vector<int> > incoming = (*it).incoming;
-    vector<vector<int> > outgoing = (*it).outgoing;
+    octant = quad.Anglesets[(*it).angleset_id].octant;
+    incoming = (*it).incoming;
+    outgoing = (*it).outgoing;
+    int if1 = incoming[0][0], if2 = incoming[1][0], if3 = incoming[2][0];
+    int of1 = outgoing[0][0], of2 = outgoing[1][0], of3 = outgoing[2][0];
 
     start_wait = MPI_Wtime();
     comm.WaitforReady((*it).task_id);
@@ -193,18 +203,21 @@ void Problem::Sweep(std::ofstream &output)
         for (int i = 0; i < cells_x; i++)
         {
           start_cell = MPI_Wtime();
-          int cell_id = GetCell(i, j, k, cells_x, cells_y, cells_z, octant);
+          cell_id = GetCell(i, j, k, cells_x, cells_y, cells_z, octant);
           Cell &my_cell = subdomain.CellSets[(*it).cellset_id_loc].Cells[cell_id];
           my_cell.GetCellijk(cell_id, cells_x, cells_y, cells_z, cell_ijk);
+          cijk0 = cell_ijk[0]; 
+          cijk1 = cell_ijk[1]; 
+          cijk2 = cell_ijk[2];
 
           // Get the cell's DFEM Matrices for building the A matrix
-          M = subdomain.CellSets[(*it).cellset_id_loc].Cells[cell_id].M;
-          N = subdomain.CellSets[(*it).cellset_id_loc].Cells[cell_id].N;
-          L = subdomain.CellSets[(*it).cellset_id_loc].Cells[cell_id].L;
-   
+          std::vector< double > &M = subdomain.CellSets[(*it).cellset_id_loc].Cells[cell_id].M;
+          std::vector<std::vector<std::vector< Direction > > > &N = subdomain.CellSets[(*it).cellset_id_loc].Cells[cell_id].N;
+          std::vector<std::vector< Direction > > &L = subdomain.CellSets[(*it).cellset_id_loc].Cells[cell_id].L;
+
           // Since the source is piece-wise constant, we only need to update the average value
           source[0] = my_cell.GetSource();
-
+          
           // Loop over angles in the angleset
           for (int m = 0; m < angle_per_angleset; m++)
           {
@@ -212,83 +225,84 @@ void Problem::Sweep(std::ofstream &output)
             
             // Get the direction of the angle
             omega = quad.Anglesets[(*it).angleset_id].Omegas[m];
+            ox = omega.x;
+            oy = omega.y;
+            oz = omega.z;
+            wt = quad.Anglesets[(*it).angleset_id].Weights[m];
             
             // Add in the gradient matrix to the A matrix
             for (int a = 0; a < 4; a++)
             {
               for (int b = 0; b < 4; b++)
-              {
-                A_tilde[a][b] = dot(omega, L[a][b]);
+              { 
+                // Add the surface matrix contribution for incoming cell faces
+                A_tilde[a][b] = ( ox * L[a][b].x      +  oy * L[a][b].y       +  oz * L[a][b].z) 
+                              + (-ox * N[if1][a][b].x + -oy * N[if1][a][b].y  + -oz * N[if1][a][b].z)
+                              + (-ox * N[if2][a][b].x + -oy * N[if2][a][b].y  + -oz * N[if2][a][b].z)
+                              + (-ox * N[if3][a][b].x + -oy * N[if3][a][b].y  + -oz * N[if3][a][b].z);
               }
-              RHS[a] = M[a] * source[a];
             }
-            // Loop over the incoming faces in this cell and 
-            // add the surface matrix contribution
-            for (int f = 0; f < 3; f++)
-            {
-              for (int a = 0; a < 4; a++)
-              {
-                for (int b = 0; b < 4; b++)
-                {
-                  A_tilde[a][b] += dot(-1 * omega, N[incoming[f][0]][a][b]);
-                }
-              }            
-            }
-            
+
             // Loop over groups in this groupset
             for (int g = 0; g < group_per_groupset; g++)
             {
               start_group = MPI_Wtime();
+
               // Initialize the b vector
               for (int a = 0; a < 4; a++)
-                bg[a] = RHS[a];
-
-              // Retrieve this cells sigma tot (this is in the group loop to simulate
-              // multi-group cross sections
-              sigma_t = my_cell.GetSigmaTot();
+                bg[a] = M[a] * source[a];
 
               // Need to get incoming fluxes for the RHS
-              for (int f = 0; f < 3; f++)
-              {
-                (*it).Get_buffer(cell_ijk[0], cell_ijk[1], cell_ijk[2], g, m, incoming[f][0], temp_solve);
-                for (int a = 0; a < 4; a++)
-                {
-                  for (int b = 0; b < 4; b++)
-                  {
-                    bg[a] += dot(-1 * omega, N[incoming[f][0]][a][b])*temp_solve[b];
-                  }
-                }
-              }
+              (*it).Get_buffer(cijk0, cijk1, cijk2, g, m, if1, temp_solve);
+              for (int a = 0; a < 4; a++)
+                bg[a] += (-ox * N[if1][a][0].x + -oy * N[if1][a][0].y  + -oz * N[if1][a][0].z)*temp_solve[0]
+                      +  (-ox * N[if1][a][1].x + -oy * N[if1][a][1].y  + -oz * N[if1][a][1].z)*temp_solve[1]
+                      +  (-ox * N[if1][a][2].x + -oy * N[if1][a][2].y  + -oz * N[if1][a][2].z)*temp_solve[2]
+                      +  (-ox * N[if1][a][3].x + -oy * N[if1][a][3].y  + -oz * N[if1][a][3].z)*temp_solve[3];
+
+              (*it).Get_buffer(cijk0, cijk1, cijk2, g, m, if2, temp_solve);
+              for (int a = 0; a < 4; a++)
+                bg[a] += (-ox * N[if2][a][0].x + -oy * N[if2][a][0].y  + -oz * N[if2][a][0].z)*temp_solve[0]
+                      +  (-ox * N[if2][a][1].x + -oy * N[if2][a][1].y  + -oz * N[if2][a][1].z)*temp_solve[1]
+                      +  (-ox * N[if2][a][2].x + -oy * N[if2][a][2].y  + -oz * N[if2][a][2].z)*temp_solve[2]
+                      +  (-ox * N[if2][a][3].x + -oy * N[if2][a][3].y  + -oz * N[if2][a][3].z)*temp_solve[3];
+
+              (*it).Get_buffer(cijk0, cijk1, cijk2, g, m, if3, temp_solve);
+              for (int a = 0; a < 4; a++)
+                bg[a] += (-ox * N[if3][a][0].x + -oy * N[if3][a][0].y  + -oz * N[if3][a][0].z)*temp_solve[0]
+                      +  (-ox * N[if3][a][1].x + -oy * N[if3][a][1].y  + -oz * N[if3][a][1].z)*temp_solve[1]
+                      +  (-ox * N[if3][a][2].x + -oy * N[if3][a][2].y  + -oz * N[if3][a][2].z)*temp_solve[2]
+                      +  (-ox * N[if3][a][3].x + -oy * N[if3][a][3].y  + -oz * N[if3][a][3].z)*temp_solve[3];
           
               // Add the contribution to the A matrix and the RHS vector
               for (int a = 0; a < 4; a++)
               {
                 for (int b = 0; b < 4; b++)
-                {
                   A[a][b] = A_tilde[a][b];  
-                }
-                A[a][a] += sigma_t * M[a];
+                // Retrieve this cells sigma tot (this is in the group loop to simulate multi-group cross sections)
+                A[a][a] += my_cell.GetSigmaTot() * M[a];
               }
 
               // Solve A^-1*RHS with Gaussian Elimination and store it in RHS (4 = number of elements)
               GE_no_pivoting(A, bg, 4);
 
               // Now we accumulate the fluxes into phi;
+              index = (*it).groupset_id*group_per_groupset*4+4*g;
               for (int p = 0; p < 4; p++)
-                my_cell.phi[(*it).groupset_id*group_per_groupset * 4 + 4 * g + p] += bg[p] * quad.Anglesets[(*it).angleset_id].Weights[m];
+                my_cell.phi[index + p] += bg[p] * wt;
 
               // Now we need to translate the cell average to the average on each 
               // face before we push to the down stream neighbers
               // This allows for direct data movement (no cell to cell mapping needed)
-              cell_average = bg[0];
-              for (int f = 0; f < 3; f++)
-              {
-                facecenter = my_cell.facecenters[outgoing[f][0]];
+              bg[0] += my_cell.facecenters[of1].x*bg[1] + my_cell.facecenters[of1].y*bg[2] + my_cell.facecenters[of1].z*bg[3];
+              (*it).Set_buffer(cijk0, cijk1, cijk2, g, m, of1, task_it, bg);
 
-                bg[0] = cell_average + facecenter.x*bg[1] + facecenter.y*bg[2] + facecenter.z*bg[3];
-                // Now store outgoing fluxes in the buffer arrays
-                (*it).Set_buffer(cell_ijk[0], cell_ijk[1], cell_ijk[2], g, m, outgoing[f][0], task_it, bg);
-              }
+              bg[0] += my_cell.facecenters[of2].x*bg[1] + my_cell.facecenters[of2].y*bg[2] + my_cell.facecenters[of2].z*bg[3];
+              (*it).Set_buffer(cijk0, cijk1, cijk2, g, m, of2, task_it, bg);
+
+              bg[0] += my_cell.facecenters[of3].x*bg[1] + my_cell.facecenters[of3].y*bg[2] + my_cell.facecenters[of3].z*bg[3];
+              (*it).Set_buffer(cijk0, cijk1, cijk2, g, m, of3, task_it, bg);
+              
               duration_group += MPI_Wtime() - start_group;
             } //groups
             duration_angle += MPI_Wtime() - start_angle;
@@ -303,8 +317,7 @@ void Problem::Sweep(std::ofstream &output)
     comm.markComplete((*it).task_id);
     duration_send += MPI_Wtime() - start_send;
      
-    duration_loop = (MPI_Wtime() - start_loop);
-    total_duration_loop += duration_loop;
+    total_duration_loop += (MPI_Wtime() - start_loop);
   } // tasks
   duration_task -= duration_cell;
   duration_cell -= duration_angle;

@@ -111,60 +111,6 @@ double Task::GetBoundaryCondition(int Boundary)
 }
 
 
-void Task::Set_buffer(int cell_x, int cell_y, int cell_z, int group, int angle, int face, int task, vector<double>& RHS)
-{
-  if (face == 0 || face == 1)
-  {
-    for (int i = 0; i < 4; i++)
-    {
-      plane_data[0][cell_y*cells_z*group_per_groupset*angle_per_angleset * 4 + cell_z*group_per_groupset*angle_per_angleset * 4 + group*angle_per_angleset * 4 + angle * 4 + i] = RHS[i];
-    }
-  }
-  else if (face == 2 || face == 3)
-  {
-    for (int i = 0; i < 4; i++)
-    {
-      plane_data[1][cell_x*cells_z*group_per_groupset*angle_per_angleset * 4 + cell_z*group_per_groupset*angle_per_angleset * 4 + group*angle_per_angleset * 4 + angle * 4 + i] = RHS[i];
-    }
-  }
-  else if (face == 4 || face == 5)
-  {
-    for (int i = 0; i < 4; i++)
-    {
-      plane_data[2][cell_x*cells_y*group_per_groupset*angle_per_angleset * 4 + cell_y*group_per_groupset*angle_per_angleset * 4 + group*angle_per_angleset * 4 + angle * 4 + i] = RHS[i];
-    }
-  }
-}
-
-
-
-void Task::Get_buffer(int cell_x, int cell_y, int cell_z, int group, int angle, int face, vector<double>& RHS)
-{
-  if (face == 0 || face == 1)
-  {
-    for (int i = 0; i < 4; i++)
-    {
-      RHS[i] = plane_data[0][cell_y*cells_z*group_per_groupset*angle_per_angleset * 4 + cell_z*group_per_groupset*angle_per_angleset * 4 + group*angle_per_angleset * 4 + angle * 4 + i];
-    }
-  }
-  else if (face == 2 || face == 3)
-  {
-    for (int i = 0; i < 4; i++)
-    {
-      RHS[i] = plane_data[1][cell_x*cells_z*group_per_groupset*angle_per_angleset * 4 + cell_z*group_per_groupset*angle_per_angleset * 4 + group*angle_per_angleset * 4 + angle * 4 + i];
-    }
-  }
-  else
-  {
-    for (int i = 0; i < 4; i++)
-    {
-      RHS[i] = plane_data[2][cell_x*cells_y*group_per_groupset*angle_per_angleset * 4 + cell_y*group_per_groupset*angle_per_angleset * 4 + group*angle_per_angleset * 4 + angle * 4 + i];
-    }
-  }
-}
-
-
-
 void Task::Get_buffer_from_bc(int dim)
 {
 

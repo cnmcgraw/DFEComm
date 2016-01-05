@@ -56,8 +56,56 @@ public:
 	void AllocateBuffers(void);
 
 	// Set functions for the X, Y, and Z buffers
-	void Set_buffer(int, int, int, int, int, int, int, vector<double>&);
-	void Get_buffer(int, int, int, int, int, int, vector<double>&);
+        inline void Set_buffer(int cell_x, int cell_y, int cell_z, int group, int angle, int face, int task, vector<double>& RHS)
+	{
+	  if (face == 0 || face == 1)
+	  {
+	    int index = cell_y*cells_z*group_per_groupset*angle_per_angleset * 4 + cell_z*group_per_groupset*angle_per_angleset * 4 + 
+              group*angle_per_angleset * 4 + angle * 4;
+	    for (int i = 0; i < 4; i++)
+	      plane_data[0][index + i] = RHS[i];
+	  }
+	  else if (face == 2 || face == 3)
+	  {
+	    int index = cell_x*cells_z*group_per_groupset*angle_per_angleset * 4 + cell_z*group_per_groupset*angle_per_angleset * 4 +
+              group*angle_per_angleset * 4 + angle * 4;
+	    for (int i = 0; i < 4; i++)
+	      plane_data[1][index + i] = RHS[i];
+	  }
+	  else if (face == 4 || face == 5)
+	  {
+	    int index = cell_x*cells_y*group_per_groupset*angle_per_angleset * 4 + cell_y*group_per_groupset*angle_per_angleset * 4 + 
+              group*angle_per_angleset * 4 + angle * 4;
+	    for (int i = 0; i < 4; i++)
+	      plane_data[2][index + i] = RHS[i];
+	  }
+	}
+
+        inline void Get_buffer(int cell_x, int cell_y, int cell_z, int group, int angle, int face, vector<double>& RHS)
+        {
+          if (face == 0 || face == 1)
+	  {
+            int index = cell_y*cells_z*group_per_groupset*angle_per_angleset * 4 + cell_z*group_per_groupset*angle_per_angleset * 4 + 
+              group*angle_per_angleset * 4 + angle * 4;
+	    for (int i = 0; i < 4; i++)
+	      RHS[i] = plane_data[0][index + i];
+	  }
+          else if (face == 2 || face == 3)
+	  {
+	    int index = cell_x*cells_z*group_per_groupset*angle_per_angleset * 4 + cell_z*group_per_groupset*angle_per_angleset * 4 + 
+              group*angle_per_angleset * 4 + angle * 4;
+	    for (int i = 0; i < 4; i++)
+	      RHS[i] = plane_data[1][index + i];
+	  }
+          else
+	  {
+	    int index = cell_x*cells_y*group_per_groupset*angle_per_angleset * 4 + cell_y*group_per_groupset*angle_per_angleset * 4 + 
+              group*angle_per_angleset * 4 + angle * 4;
+	    for (int i = 0; i < 4; i++)
+	      RHS[i] = plane_data[2][index + i];
+	  }
+        }
+        
 	void Get_buffer_from_bc(int);
 
 	int cells_x;
