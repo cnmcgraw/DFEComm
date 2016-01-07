@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <ctime>
 #include <deque>
+#include <string.h>
 
 using std::vector;
 
@@ -184,8 +185,12 @@ void Problem::Sweep(std::ofstream &output)
     octant = quad.Anglesets[(*it).angleset_id].octant;
     incoming = (*it).incoming;
     outgoing = (*it).outgoing;
-    int if1 = incoming[0][0], if2 = incoming[1][0], if3 = incoming[2][0];
-    int of1 = outgoing[0][0], of2 = outgoing[1][0], of3 = outgoing[2][0];
+    if1 = incoming[0][0];
+    if2 = incoming[1][0];
+    if3 = incoming[2][0];
+    of1 = outgoing[0][0];
+    of2 = outgoing[1][0];
+    of3 = outgoing[2][0];
 
     start_wait = MPI_Wtime();
     comm.WaitforReady((*it).task_id);
@@ -248,31 +253,37 @@ void Problem::Sweep(std::ofstream &output)
             {
               start_group = MPI_Wtime();
 
-              // Initialize the b vector
+              // Initialize b and add incoming fluxes for the RHS
+              std::vector<double>::iterator bloc = (*it).Get_buffer_loc(cijk0, cijk1, cijk2, g, m, if1);
               for (int a = 0; a < 4; a++)
-                bg[a] = M[a] * source[a];
+              {
+                std::vector<Direction> &T = N[if1][a];
+                bg[a] = M[a] * source[a]
+                      + (-ox * T[0].x + -oy * T[0].y  + -oz * T[0].z)*bloc[0]
+                      + (-ox * T[1].x + -oy * T[1].y  + -oz * T[1].z)*bloc[1]
+                      + (-ox * T[2].x + -oy * T[2].y  + -oz * T[2].z)*bloc[2]
+                      + (-ox * T[3].x + -oy * T[3].y  + -oz * T[3].z)*bloc[3];
+              } 
 
-              // Need to get incoming fluxes for the RHS
-              (*it).Get_buffer(cijk0, cijk1, cijk2, g, m, if1, temp_solve);
+              (*it).Get_buffer_loc(cijk0, cijk1, cijk2, g, m, if2);
               for (int a = 0; a < 4; a++)
-                bg[a] += (-ox * N[if1][a][0].x + -oy * N[if1][a][0].y  + -oz * N[if1][a][0].z)*temp_solve[0]
-                      +  (-ox * N[if1][a][1].x + -oy * N[if1][a][1].y  + -oz * N[if1][a][1].z)*temp_solve[1]
-                      +  (-ox * N[if1][a][2].x + -oy * N[if1][a][2].y  + -oz * N[if1][a][2].z)*temp_solve[2]
-                      +  (-ox * N[if1][a][3].x + -oy * N[if1][a][3].y  + -oz * N[if1][a][3].z)*temp_solve[3];
+              {
+                std::vector<Direction> &T = N[if2][a];
+                bg[a] += (-ox * T[0].x + -oy * T[0].y  + -oz * T[0].z)*bloc[0]
+                      +  (-ox * T[1].x + -oy * T[1].y  + -oz * T[1].z)*bloc[1]
+                      +  (-ox * T[2].x + -oy * T[2].y  + -oz * T[2].z)*bloc[2]
+                      +  (-ox * T[3].x + -oy * T[3].y  + -oz * T[3].z)*bloc[3];
+              } 
 
-              (*it).Get_buffer(cijk0, cijk1, cijk2, g, m, if2, temp_solve);
+              (*it).Get_buffer_loc(cijk0, cijk1, cijk2, g, m, if3);
               for (int a = 0; a < 4; a++)
-                bg[a] += (-ox * N[if2][a][0].x + -oy * N[if2][a][0].y  + -oz * N[if2][a][0].z)*temp_solve[0]
-                      +  (-ox * N[if2][a][1].x + -oy * N[if2][a][1].y  + -oz * N[if2][a][1].z)*temp_solve[1]
-                      +  (-ox * N[if2][a][2].x + -oy * N[if2][a][2].y  + -oz * N[if2][a][2].z)*temp_solve[2]
-                      +  (-ox * N[if2][a][3].x + -oy * N[if2][a][3].y  + -oz * N[if2][a][3].z)*temp_solve[3];
-
-              (*it).Get_buffer(cijk0, cijk1, cijk2, g, m, if3, temp_solve);
-              for (int a = 0; a < 4; a++)
-                bg[a] += (-ox * N[if3][a][0].x + -oy * N[if3][a][0].y  + -oz * N[if3][a][0].z)*temp_solve[0]
-                      +  (-ox * N[if3][a][1].x + -oy * N[if3][a][1].y  + -oz * N[if3][a][1].z)*temp_solve[1]
-                      +  (-ox * N[if3][a][2].x + -oy * N[if3][a][2].y  + -oz * N[if3][a][2].z)*temp_solve[2]
-                      +  (-ox * N[if3][a][3].x + -oy * N[if3][a][3].y  + -oz * N[if3][a][3].z)*temp_solve[3];
+              {
+                std::vector<Direction> &T = N[if3][a];
+                bg[a] += (-ox * T[0].x + -oy * T[0].y  + -oz * T[0].z)*bloc[0]
+                      +  (-ox * T[1].x + -oy * T[1].y  + -oz * T[1].z)*bloc[1]
+                      +  (-ox * T[2].x + -oy * T[2].y  + -oz * T[2].z)*bloc[2]
+                      +  (-ox * T[3].x + -oy * T[3].y  + -oz * T[3].z)*bloc[3];
+              }
           
               // Add the contribution to the A matrix and the RHS vector
               for (int a = 0; a < 4; a++)
@@ -287,7 +298,7 @@ void Problem::Sweep(std::ofstream &output)
               GE_no_pivoting(A, bg, 4);
 
               // Now we accumulate the fluxes into phi;
-              index = (*it).groupset_id*group_per_groupset*4+4*g;
+              int index = (*it).groupset_id*group_per_groupset*4+4*g;
               for (int p = 0; p < 4; p++)
                 my_cell.phi[index + p] += bg[p] * wt;
 
@@ -295,13 +306,19 @@ void Problem::Sweep(std::ofstream &output)
               // face before we push to the down stream neighbers
               // This allows for direct data movement (no cell to cell mapping needed)
               bg[0] += my_cell.facecenters[of1].x*bg[1] + my_cell.facecenters[of1].y*bg[2] + my_cell.facecenters[of1].z*bg[3];
-              (*it).Set_buffer(cijk0, cijk1, cijk2, g, m, of1, task_it, bg);
+              bloc = (*it).Get_buffer_loc(cijk0, cijk1, cijk2, g, m, of1);
+              for(int i = 0;i < 4;++i)
+                bloc[i] = bg[i];
 
               bg[0] += my_cell.facecenters[of2].x*bg[1] + my_cell.facecenters[of2].y*bg[2] + my_cell.facecenters[of2].z*bg[3];
-              (*it).Set_buffer(cijk0, cijk1, cijk2, g, m, of2, task_it, bg);
+              bloc = (*it).Get_buffer_loc(cijk0, cijk1, cijk2, g, m, of2);
+              for(int i = 0;i < 4;++i)
+                bloc[i] = bg[i];
 
               bg[0] += my_cell.facecenters[of3].x*bg[1] + my_cell.facecenters[of3].y*bg[2] + my_cell.facecenters[of3].z*bg[3];
-              (*it).Set_buffer(cijk0, cijk1, cijk2, g, m, of3, task_it, bg);
+              bloc = (*it).Get_buffer_loc(cijk0, cijk1, cijk2, g, m, of3);
+              for(int i = 0;i < 4;++i)
+                bloc[i] = bg[i];
               
               duration_group += MPI_Wtime() - start_group;
             } //groups
