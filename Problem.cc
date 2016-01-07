@@ -148,6 +148,10 @@ void Problem::Sweep(std::ofstream &output)
   for(int i = 0; i < All_Tasks.size(); i++){
     comm.addTask(All_Tasks[i].task_id, All_Tasks[i]);
   }
+  
+  std::vector<Task>::iterator it = All_Tasks.begin();
+  std::vector<Task>::iterator it_end = All_Tasks.end();
+  
   // Necessary temporary data structures for the sweep
   std::vector<int> cell_ijk(3, 0);
   std::vector<double> temp_solve(4, 0);
@@ -162,15 +166,14 @@ void Problem::Sweep(std::ofstream &output)
   
   // Angle Loop
   int cell_id, cijk0, cijk1, cijk2;
+  omega.resize((*it).angle_per_angleset);
   double ox, oy, oz;
   
   // Group Loop
   int index;
-  double wt;
+  std::vector<double> wt((*it).angle_per_angleset,0.0);
 
   // Loop through task list
-  std::vector<Task>::iterator it = All_Tasks.begin();
-  std::vector<Task>::iterator it_end = All_Tasks.end();
   for (; it != it_end; it++, task_it++)
   {
     start_loop = MPI_Wtime();
@@ -191,6 +194,11 @@ void Problem::Sweep(std::ofstream &output)
     of1 = outgoing[0][0];
     of2 = outgoing[1][0];
     of3 = outgoing[2][0];
+    
+    for (int m = 0; m < angle_per_angleset; m++){
+      omega[m] = quad.Anglesets[(*it).angleset_id].Omegas[m];
+      wt[m] = quad.Anglesets[(*it).angleset_id].Weights[m];
+    }
 
     start_wait = MPI_Wtime();
     comm.WaitforReady((*it).task_id);
@@ -229,11 +237,11 @@ void Problem::Sweep(std::ofstream &output)
             start_angle = MPI_Wtime();
             
             // Get the direction of the angle
-            omega = quad.Anglesets[(*it).angleset_id].Omegas[m];
-            ox = omega.x;
-            oy = omega.y;
-            oz = omega.z;
-            wt = quad.Anglesets[(*it).angleset_id].Weights[m];
+            
+            ox = omega[m].x;
+            oy = omega[m].y;
+            oz = omega[m].z;
+            
             
             // Add in the gradient matrix to the A matrix
             for (int a = 0; a < 4; a++)
@@ -300,7 +308,7 @@ void Problem::Sweep(std::ofstream &output)
               // Now we accumulate the fluxes into phi;
               int index = (*it).groupset_id*group_per_groupset*4+4*g;
               for (int p = 0; p < 4; p++)
-                my_cell.phi[index + p] += bg[p] * wt;
+                my_cell.phi[index + p] += bg[p] * wt[m];
 
               // Now we need to translate the cell average to the average on each 
               // face before we push to the down stream neighbers

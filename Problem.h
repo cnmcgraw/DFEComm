@@ -66,7 +66,8 @@ private:
 	std::vector<std::vector<std::vector< Direction > > > N;
 	std::vector<std::vector< Direction > > L;
 	std::vector<double> source;
-	Direction omega,facecenter;
+	std::vector<Direction> omega;
+  Direction facecenter;
 	double sigma_t, cell_average;
 	int num_tasks;
 
