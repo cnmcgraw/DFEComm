@@ -303,7 +303,35 @@ void Problem::Sweep(std::ofstream &output)
               }
 
               // Solve A^-1*RHS with Gaussian Elimination and store it in RHS (4 = number of elements)
-              GE_no_pivoting(A, bg, 4);
+              double inv1 = 1.0/A[0][0], inv2 = 1.0/A[1][1], inv3 = 1.0/A[2][2];
+
+              // Forward elimination
+              double val = A[1][0] * inv1;
+              bg[1] -= val * bg[0];
+              A[1][1] -= val * A[0][1];
+              A[1][2] -= 2*(val * A[0][2]);
+              A[1][3] -= 3*(val * A[0][3]);
+
+              val = A[2][0] * inv1;
+              double val2 = A[2][1] * inv2;
+              bg[2] -= (val * bg[0] + val2 * bg[1]);
+              A[2][1] -= (val * A[0][1] + val * A[1][1]);
+              A[2][2] -= (2*(val * A[0][2]) + 2*(val * A[1][2]));
+              A[2][3] -= (3*(val * A[0][3]) + 3*(val * A[1][3]));
+
+              val =  A[3][0] * inv1;
+              val2 = A[3][1] * inv2;
+              double val3 = A[3][2] * inv3;
+              bg[3] -= (val * bg[0] + val2 * bg[1] + val3 * bg[2]);
+              A[3][1] -= (val * A[0][1] + val2 * A[1][1] + val2 * A[2][2]);
+              A[3][2] -= (2*(val * A[0][2]) + 2*(val2 * A[1][2]) + 2*(val3 * A[2][2]));
+              A[3][3] -= (3*(val * A[0][3]) + 3*(val2 * A[1][3]) + 3*(val3 * A[2][3]));
+
+              // Back substitution
+              bg[3] = (bg[3] - (3*(A[3][3] * bg[3]) + 2*(A[3][2] * bg[2]) + A[3][1] * bg[1]))/A[3][3];
+              bg[2] = (bg[2] - (3*(A[2][3] * bg[3]) + 2*(A[2][2] * bg[2]) + A[2][1] * bg[1]))*inv3;
+              bg[1] = (bg[1] - (3*(A[1][3] * bg[3]) + 2*(A[1][2] * bg[2]) + A[1][1] * bg[1]))*inv2;
+              bg[0] = (bg[0] - (3*(A[0][3] * bg[3]) + 2*(A[0][2] * bg[2]) + A[0][1] * bg[1]))*inv1;
 
               // Now we accumulate the fluxes into phi;
               int index = (*it).groupset_id*group_per_groupset*4+4*g;
