@@ -195,19 +195,20 @@ void CellSet::GetNeighbors(int CS_ID)
   // are orthogonal along the xyz axes
   for (int i = 0; i < neighbors.size(); i++)
   {
-    neighbors[i].direction.x = 0;
-    neighbors[i].direction.y = 0;
-    neighbors[i].direction.z = 0;
+    neighbors[i].direction.resize(3);
+    neighbors[i].direction[0] = 0;
+    neighbors[i].direction[1] = 0;
+    neighbors[i].direction[2] = 0;
   }
 
 
-  neighbors[0].direction.x = 1;
-  neighbors[1].direction.x = -1;
-  neighbors[2].direction.y = 1;
-  neighbors[3].direction.y = -1;
+  neighbors[0].direction[0] = 1;
+  neighbors[1].direction[0] = -1;
+  neighbors[2].direction[1] = 1;
+  neighbors[3].direction[1] = -1;
   if (neighbors.size() == 6){
-    neighbors[4].direction.z = 1;
-    neighbors[5].direction.z = -1;
+    neighbors[4].direction[2] = 1;
+    neighbors[5].direction[2] = -1;
   }
 
   // If ID is <0, the CellSet is on a global boundary

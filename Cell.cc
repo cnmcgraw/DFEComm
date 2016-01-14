@@ -112,18 +112,19 @@ void Cell::GetNeighbors(int CS_ID)
 	// are orthogonal along the xyz axes
 	for (int i = 0; i < neighbors.size(); i++)
 	{
-		neighbors[i].direction.x = 0;
-		neighbors[i].direction.y = 0;
-		neighbors[i].direction.z = 0;
+    neighbors[i].direction.resize(3);
+		neighbors[i].direction[0] = 0;
+		neighbors[i].direction[1] = 0;
+		neighbors[i].direction[2] = 0;
 	}
 		
 
-	neighbors[0].direction.x = 1;
-	neighbors[1].direction.x = -1;
-	neighbors[2].direction.y = 1;
-	neighbors[3].direction.y = -1;
-	neighbors[4].direction.z = 1;
-	neighbors[5].direction.z = -1;
+	neighbors[0].direction[0] = 1;
+	neighbors[1].direction[0] = -1;
+	neighbors[2].direction[1] = 1;
+	neighbors[3].direction[1] = -1;
+	neighbors[4].direction[2] = 1;
+	neighbors[5].direction[2] = -1;
 
 	
 	// If ID is <0, the cell is on the cellset boundary
@@ -202,106 +203,106 @@ void Cell::GetNeighbors(int CS_ID)
 
 void Cell::GetFaceNormals()
 {
-	normals.resize(6);
+	normals.resize(6, std::vector<double>(3));
 
 	for (int i = 0; i < normals.size(); i++)
 	{
-		normals[i].x = 0;
-		normals[i].y = 0;
-		normals[i].z = 0;
+		normals[i][0] = 0;
+		normals[i][1] = 0;
+		normals[i][2] = 0;
 	}
-	normals[0].x = 1.;
-	normals[1].x = -1.;
-	normals[2].y = 1.;
-	normals[3].y = -1.;
-	normals[4].z = 1.;
-	normals[5].z = -1.;
+	normals[0][0] = 1.;
+	normals[1][0] = -1.;
+	normals[2][1] = 1.;
+	normals[3][1] = -1.;
+	normals[4][1] = 1.;
+	normals[5][1] = -1.;
 }
 
 void Cell::GetFaceCenters()
 {
-	facecenters.resize(6);
+	facecenters.resize(6, std::vector<double>(3));
 
 	for (int i = 0; i < facecenters.size(); i++)
 	{
-		facecenters[i].x = 0;
-		facecenters[i].y = 0;
-		facecenters[i].z = 0;
+		facecenters[i][0] = 0;
+		facecenters[i][1] = 0;
+		facecenters[i][2] = 0;
 	}
-	facecenters[0].x = delta_x/2.;
-	facecenters[1].x = -delta_x/2.;
-	facecenters[2].y = delta_y/2.;
-	facecenters[3].y = -delta_y/2.;
-	facecenters[4].z = delta_z/2.;
-	facecenters[5].z = -delta_z/2.;
+	facecenters[0][0] = delta_x/2.;
+	facecenters[1][0] = -delta_x/2.;
+	facecenters[2][1] = delta_y/2.;
+	facecenters[3][1] = -delta_y/2.;
+	facecenters[4][2] = delta_z/2.;
+	facecenters[5][2] = -delta_z/2.;
 }
 
 void Cell::ComputeDFEMMatrices()
 {
 	// M is the mass matrix
-	M.resize(4);
-	M[0] = delta_x*delta_y*delta_z;
-	M[1] = (1./12.)*delta_x*delta_y*delta_z;
-	M[2] = (1./12.)*delta_x*delta_y*delta_z;
-	M[3] = (1./12.)*delta_x*delta_y*delta_z;
+	M.resize(4, vector< double >( 4 ) );
+	M[0][0] = delta_x*delta_y*delta_z;
+	M[1][1] = (1./12.)*delta_x*delta_y*delta_z;
+	M[2][2] = (1./12.)*delta_x*delta_y*delta_z;
+	M[3][3] = (1./12.)*delta_x*delta_y*delta_z;
 
 	// N is the surface matrix. The first dimension is the face
 	// Each face as a 4x4 matrix of (x,y,z) components
-	N.resize(6, vector<vector<Direction > >(4, vector< Direction >(4) ) );
+	N.resize(6, vector<vector<vector<double > > >(4, vector< vector<double> >(4, vector<double>(3) ) ) );
 	// Face 0: e_n = (1, 0, 0)
-	N[0][0][0].x = delta_y*delta_z;
-	N[0][0][1].x = delta_y*delta_z;
-	N[0][1][0].x = delta_y*delta_z;
-	N[0][1][1].x = delta_y*delta_z;
-	N[0][2][2].x = delta_y*delta_z/12.;
-	N[0][3][3].x = delta_y*delta_z/12.;
+	N[0][0][0][0] = delta_y*delta_z;
+	N[0][0][1][0] = delta_y*delta_z;
+	N[0][1][0][0] = delta_y*delta_z;
+	N[0][1][1][0] = delta_y*delta_z;
+	N[0][2][2][0] = delta_y*delta_z/12.;
+	N[0][3][3][0] = delta_y*delta_z/12.;
 
 	// Face 1: e_n = (-1, 0, 0)
 	for(int i=0; i< N[1].size(); i++)
 	{
 		for(int j=0; j<N[1].size();j++)
 		{
-			N[1][i][j].x = N[0][i][j].x;
+			N[1][i][j][0] = N[0][i][j][0];
 			if(i == j)
-				N[1][i][j].x *= -1.;
+				N[1][i][j][0] *= -1.;
 		}
 	}
 
 	// Face 2: e_n = (0, 1, 0)
-	N[2][0][0].y = delta_x*delta_z;
-	N[2][0][1].y = delta_x*delta_z;
-	N[2][1][1].y = delta_x*delta_z/12.;
-	N[2][2][0].y = delta_x*delta_z;
-	N[2][2][2].y = delta_x*delta_z;
-	N[2][3][3].y = delta_x*delta_z/12.;
+	N[2][0][0][1] = delta_x*delta_z;
+	N[2][0][1][1] = delta_x*delta_z;
+	N[2][1][1][1] = delta_x*delta_z/12.;
+	N[2][2][0][1] = delta_x*delta_z;
+	N[2][2][2][1] = delta_x*delta_z;
+	N[2][3][3][1] = delta_x*delta_z/12.;
 	
 	// Face 3: e_n = (0, -1, 0)
 	for(int i=0; i< N[3].size(); i++)
 	{
 		for(int j=0; j<N[3].size();j++)
 		{
-			N[3][i][j].y = N[2][i][j].y;
+			N[3][i][j][1] = N[2][i][j][1];
 			if(i == j)
-				N[3][i][j].y *= -1.;
+				N[3][i][j][1] *= -1.;
 		}
 	}
 
 	// Face 4: e_n = (0, 0, 1)
-	N[4][0][0].z = delta_x*delta_y;
-	N[4][0][1].z = delta_x*delta_y;
-	N[4][1][1].z = delta_x*delta_y/12.;
-	N[4][2][2].z = delta_x*delta_y/12.;
-	N[4][3][0].z = delta_x*delta_y;
-	N[4][3][3].z = delta_x*delta_y;
+	N[4][0][0][2] = delta_x*delta_y;
+	N[4][0][1][2] = delta_x*delta_y;
+	N[4][1][1][2] = delta_x*delta_y/12.;
+	N[4][2][2][2] = delta_x*delta_y/12.;
+	N[4][3][0][2] = delta_x*delta_y;
+	N[4][3][3][2] = delta_x*delta_y;
 
 	// Face 5: e_n = (0, 0, -1)
 	for(int i=0; i< N[5].size(); i++)
 	{
 		for(int j=0; j<N[5].size();j++)
 		{
-			N[5][i][j].z = N[4][i][j].z;
+			N[5][i][j][2] = N[4][i][j][2];
 			if(i == j)
-				N[5][i][j].z *= -1.;
+				N[5][i][j][2] *= -1.;
 		}
 	}
 
@@ -309,10 +310,10 @@ void Cell::ComputeDFEMMatrices()
 	// It's mostly zeros, but it's fully built to
 	// simulate non-rectangular geometries
 	// It is a 4x4 matrix of (x,y,z) components
-	L.resize(4, vector< Direction >( 4 ) );
-	L[0][1].x = delta_y*delta_z;
-	L[0][2].y = delta_x*delta_z;
-	L[0][3].z = delta_x*delta_y;
+	L.resize(4, vector< vector<double> >( 4, vector<double>(3) ) );
+	L[0][1][0] = delta_y*delta_z;
+	L[0][2][1] = delta_x*delta_z;
+	L[0][3][2] = delta_x*delta_y;
 
 
 }

@@ -28,15 +28,15 @@ struct by_depth {
         return a.groupset_id < b.groupset_id;
       else
       {
-        if (a.omega.x == b.omega.x){
-          if (a.omega.y == b.omega.y){
-            return a.omega.z > b.omega.z;
+        if (a.omega[0] == b.omega[0]){
+          if (a.omega[1] == b.omega[1]){
+            return a.omega[2] > b.omega[2];
           }
           else
-            return a.omega.y > b.omega.y;
+            return a.omega[1] > b.omega[1];
         }
         else
-          return a.omega.x > b.omega.x;
+          return a.omega[0] > b.omega[0];
       }
     }
     else
@@ -166,12 +166,15 @@ void Problem::Sweep(std::ofstream &output)
   
   // Angle Loop
   int cell_id, cijk0, cijk1, cijk2;
-  omega.resize((*it).angle_per_angleset);
+  omega.resize((*it).angle_per_angleset, std::vector<double>(3));
   double ox, oy, oz;
   
   // Group Loop
   int index;
   std::vector<double> wt((*it).angle_per_angleset,0.0);
+  std::vector<std::vector<double>::iterator> bloc(group_per_groupset);
+  
+  double sig_tot;
 
   // Loop through task list
   for (; it != it_end; it++, task_it++)
@@ -196,7 +199,9 @@ void Problem::Sweep(std::ofstream &output)
     of3 = outgoing[2][0];
     
     for (int m = 0; m < angle_per_angleset; m++){
-      omega[m] = quad.Anglesets[(*it).angleset_id].Omegas[m];
+      omega[m][0] = quad.Anglesets[(*it).angleset_id].Omegas[m][0];
+      omega[m][1] = quad.Anglesets[(*it).angleset_id].Omegas[m][1];
+      omega[m][2] = quad.Anglesets[(*it).angleset_id].Omegas[m][2];
       wt[m] = quad.Anglesets[(*it).angleset_id].Weights[m];
     }
 
@@ -222,11 +227,12 @@ void Problem::Sweep(std::ofstream &output)
           cijk0 = cell_ijk[0]; 
           cijk1 = cell_ijk[1]; 
           cijk2 = cell_ijk[2];
+          sig_tot = my_cell.GetSigmaTot();
 
           // Get the cell's DFEM Matrices for building the A matrix
-          std::vector< double > &M = subdomain.CellSets[(*it).cellset_id_loc].Cells[cell_id].M;
-          std::vector<std::vector<std::vector< Direction > > > &N = subdomain.CellSets[(*it).cellset_id_loc].Cells[cell_id].N;
-          std::vector<std::vector< Direction > > &L = subdomain.CellSets[(*it).cellset_id_loc].Cells[cell_id].L;
+          std::vector<std::vector< double > > &M = subdomain.CellSets[(*it).cellset_id_loc].Cells[cell_id].M;
+          std::vector<std::vector<std::vector< vector<double> > > > &N = subdomain.CellSets[(*it).cellset_id_loc].Cells[cell_id].N;
+          std::vector<std::vector< vector<double> > > &L = subdomain.CellSets[(*it).cellset_id_loc].Cells[cell_id].L;
 
           // Since the source is piece-wise constant, we only need to update the average value
           source[0] = my_cell.GetSource();
@@ -237,10 +243,9 @@ void Problem::Sweep(std::ofstream &output)
             start_angle = MPI_Wtime();
             
             // Get the direction of the angle
-            
-            ox = omega[m].x;
-            oy = omega[m].y;
-            oz = omega[m].z;
+            ox = omega[m][0];
+            oy = omega[m][1];
+            oz = omega[m][2];
             
             
             // Add in the gradient matrix to the A matrix
@@ -249,48 +254,53 @@ void Problem::Sweep(std::ofstream &output)
               for (int b = 0; b < 4; b++)
               { 
                 // Add the surface matrix contribution for incoming cell faces
-                A_tilde[a][b] = ( ox * L[a][b].x      +  oy * L[a][b].y       +  oz * L[a][b].z) 
-                              + (-ox * N[if1][a][b].x + -oy * N[if1][a][b].y  + -oz * N[if1][a][b].z)
-                              + (-ox * N[if2][a][b].x + -oy * N[if2][a][b].y  + -oz * N[if2][a][b].z)
-                              + (-ox * N[if3][a][b].x + -oy * N[if3][a][b].y  + -oz * N[if3][a][b].z);
+                A_tilde[a][b] = ( ox * L[a][b][0]      +  oy * L[a][b][1]       +  oz * L[a][b][2]) 
+                              + (-ox * N[if1][a][b][0] + -oy * N[if1][a][b][1]  + -oz * N[if1][a][b][2])
+                              + (-ox * N[if2][a][b][0] + -oy * N[if2][a][b][1]  + -oz * N[if2][a][b][2])
+                              + (-ox * N[if3][a][b][0] + -oy * N[if3][a][b][1]  + -oz * N[if3][a][b][2]);
               }
             }
 
+            // Prefetch the incoming fluxes
+            for (int g = 0; g < group_per_groupset; g++)
+            {
+              bloc[g] = (*it).Get_buffer_loc(cijk0, cijk1, cijk2, g, m, if1);
+            }
             // Loop over groups in this groupset
             for (int g = 0; g < group_per_groupset; g++)
             {
               start_group = MPI_Wtime();
 
               // Initialize b and add incoming fluxes for the RHS
-              std::vector<double>::iterator bloc = (*it).Get_buffer_loc(cijk0, cijk1, cijk2, g, m, if1);
+              
               for (int a = 0; a < 4; a++)
               {
-                std::vector<Direction> &T = N[if1][a];
-                bg[a] = M[a] * source[a]
-                      + (-ox * T[0].x + -oy * T[0].y  + -oz * T[0].z)*bloc[0]
-                      + (-ox * T[1].x + -oy * T[1].y  + -oz * T[1].z)*bloc[1]
-                      + (-ox * T[2].x + -oy * T[2].y  + -oz * T[2].z)*bloc[2]
-                      + (-ox * T[3].x + -oy * T[3].y  + -oz * T[3].z)*bloc[3];
+                std::vector<std::vector<double> > &T = N[if1][a];
+                bg[a] = M[a][a] * source[a]
+                      + (-ox * T[0][0] + -oy * T[0][1]  + -oz * T[0][2])*bloc[g][0]
+                      + (-ox * T[1][0] + -oy * T[1][1]  + -oz * T[1][2])*bloc[g][1]
+                      + (-ox * T[2][0] + -oy * T[2][1]  + -oz * T[2][2])*bloc[g][2]
+                      + (-ox * T[3][0] + -oy * T[3][1]  + -oz * T[3][2])*bloc[g][3];
               } 
 
               (*it).Get_buffer_loc(cijk0, cijk1, cijk2, g, m, if2);
               for (int a = 0; a < 4; a++)
               {
-                std::vector<Direction> &T = N[if2][a];
-                bg[a] += (-ox * T[0].x + -oy * T[0].y  + -oz * T[0].z)*bloc[0]
-                      +  (-ox * T[1].x + -oy * T[1].y  + -oz * T[1].z)*bloc[1]
-                      +  (-ox * T[2].x + -oy * T[2].y  + -oz * T[2].z)*bloc[2]
-                      +  (-ox * T[3].x + -oy * T[3].y  + -oz * T[3].z)*bloc[3];
+                std::vector<std::vector<double> > &T = N[if2][a];
+                bg[a] += (-ox * T[0][0] + -oy * T[0][1]  + -oz * T[0][2])*bloc[g][0]
+                       + (-ox * T[1][0] + -oy * T[1][1]  + -oz * T[1][2])*bloc[g][1]
+                       + (-ox * T[2][0] + -oy * T[2][1]  + -oz * T[2][2])*bloc[g][2]
+                       + (-ox * T[3][0] + -oy * T[3][1]  + -oz * T[3][2])*bloc[g][3];
               } 
 
               (*it).Get_buffer_loc(cijk0, cijk1, cijk2, g, m, if3);
               for (int a = 0; a < 4; a++)
               {
-                std::vector<Direction> &T = N[if3][a];
-                bg[a] += (-ox * T[0].x + -oy * T[0].y  + -oz * T[0].z)*bloc[0]
-                      +  (-ox * T[1].x + -oy * T[1].y  + -oz * T[1].z)*bloc[1]
-                      +  (-ox * T[2].x + -oy * T[2].y  + -oz * T[2].z)*bloc[2]
-                      +  (-ox * T[3].x + -oy * T[3].y  + -oz * T[3].z)*bloc[3];
+                std::vector<std::vector<double> > &T = N[if3][a];
+                bg[a] += (-ox * T[0][0] + -oy * T[0][1]  + -oz * T[0][2])*bloc[g][0]
+                       + (-ox * T[1][0] + -oy * T[1][1]  + -oz * T[1][2])*bloc[g][1]
+                       + (-ox * T[2][0] + -oy * T[2][1]  + -oz * T[2][2])*bloc[g][2]
+                       + (-ox * T[3][0] + -oy * T[3][1]  + -oz * T[3][2])*bloc[g][3];
               }
           
               // Add the contribution to the A matrix and the RHS vector
@@ -299,7 +309,7 @@ void Problem::Sweep(std::ofstream &output)
                 for (int b = 0; b < 4; b++)
                   A[a][b] = A_tilde[a][b];  
                 // Retrieve this cells sigma tot (this is in the group loop to simulate multi-group cross sections)
-                A[a][a] += my_cell.GetSigmaTot() * M[a];
+                A[a][a] += sig_tot * M[a][a];
               }
 
               // Solve A^-1*RHS with Gaussian Elimination and store it in RHS (4 = number of elements)
@@ -313,20 +323,20 @@ void Problem::Sweep(std::ofstream &output)
               // Now we need to translate the cell average to the average on each 
               // face before we push to the down stream neighbers
               // This allows for direct data movement (no cell to cell mapping needed)
-              bg[0] += my_cell.facecenters[of1].x*bg[1] + my_cell.facecenters[of1].y*bg[2] + my_cell.facecenters[of1].z*bg[3];
-              bloc = (*it).Get_buffer_loc(cijk0, cijk1, cijk2, g, m, of1);
+              bg[0] += my_cell.facecenters[of1][0]*bg[1] + my_cell.facecenters[of1][1]*bg[2] + my_cell.facecenters[of1][2]*bg[3];
+              bloc[g] = (*it).Get_buffer_loc(cijk0, cijk1, cijk2, g, m, of1);
               for(int i = 0;i < 4;++i)
-                bloc[i] = bg[i];
+                bloc[g][i] = bg[i];
 
-              bg[0] += my_cell.facecenters[of2].x*bg[1] + my_cell.facecenters[of2].y*bg[2] + my_cell.facecenters[of2].z*bg[3];
-              bloc = (*it).Get_buffer_loc(cijk0, cijk1, cijk2, g, m, of2);
+              bg[0] += my_cell.facecenters[of2][0]*bg[1] + my_cell.facecenters[of2][1]*bg[2] + my_cell.facecenters[of2][2]*bg[3];
+              bloc[g] = (*it).Get_buffer_loc(cijk0, cijk1, cijk2, g, m, of2);
               for(int i = 0;i < 4;++i)
-                bloc[i] = bg[i];
+                bloc[g][i] = bg[i];
 
-              bg[0] += my_cell.facecenters[of3].x*bg[1] + my_cell.facecenters[of3].y*bg[2] + my_cell.facecenters[of3].z*bg[3];
-              bloc = (*it).Get_buffer_loc(cijk0, cijk1, cijk2, g, m, of3);
+              bg[0] += my_cell.facecenters[of3][0]*bg[1] + my_cell.facecenters[of3][1]*bg[2] + my_cell.facecenters[of3][2]*bg[3];
+              bloc[g] = (*it).Get_buffer_loc(cijk0, cijk1, cijk2, g, m, of3);
               for(int i = 0;i < 4;++i)
-                bloc[i] = bg[i];
+                bloc[g][i] = bg[i];
               
               duration_group += MPI_Wtime() - start_group;
             } //groups

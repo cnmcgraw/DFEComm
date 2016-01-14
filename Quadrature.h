@@ -8,29 +8,29 @@
 
 const double PI = 3.141592653589793238463;
 
-struct Direction{
-	double x;
-	double y;
-	double z;
+// struct Direction{
+	// double x;
+	// double y;
+	// double z;
 
-	Direction operator =(Direction a){
-		x = a.x;
-		y = a.y;
-		z = a.z;
-		return *this;
-	}
+	// Direction operator =(Direction a){
+		// x = a.x;
+		// y = a.y;
+		// z = a.z;
+		// return *this;
+	// }
 
-};
+// };
 
-double dot(Direction, Direction);
+double dot(std::vector<double>, std::vector<double>);
 
-Direction operator*(double, Direction);
+//Direction operator*(double, Direction);
 
 struct Angleset
 {
 	int ID;
 	std::vector<int> AngleIDs;
-	std::vector<Direction> Omegas;
+	std::vector<std::vector<double> > Omegas;
 	std::vector<double> Weights;
 	int octant;
 	int angle_per_angleset;
@@ -59,10 +59,10 @@ public:
 	void SizeAngleIDs(std::vector<int>&);
 
 	// Get the direction of the angleset given the angleset ID
-	Direction GetOmega(int);
+	std::vector<double> GetOmega(int);
 
 	// Octant of the angle given a direction
-	int GetOctant(Direction);
+	int GetOctant(std::vector<double>);
 
 
 private:
@@ -70,7 +70,7 @@ private:
 
 	int angle_per_angleset;
 
-	std::vector<Direction> Omegas;
+	std::vector<std::vector<double> > Omegas;
 	std::vector<double> Weights;
 	
 

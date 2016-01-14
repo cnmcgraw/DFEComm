@@ -51,6 +51,7 @@ void Task::BuildTask(int SML_ID, Problem* problem, Subdomain* subdomain, int cs,
   cellset_id_loc = cs;
   angleset_id = as;
   groupset_id = gs;
+  omega.resize(3);
   omega = problem->quad.GetOmega(as);
   octant = problem->quad.Anglesets[as].octant;
   depth = subdomain->CellSets[cs].GetDepth(subdomain->CellSetIDs[cs], octant, problem);

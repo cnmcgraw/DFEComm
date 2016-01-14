@@ -62,12 +62,12 @@ private:
 	std::vector< std::vector< double > > A_tilde, A;
 	std::vector< double > RHS;
 	std::vector< double > bg;
-	std::vector< double > M;
-	std::vector<std::vector<std::vector< Direction > > > N;
-	std::vector<std::vector< Direction > > L;
+//	std::vector< double > M;
+//	std::vector<std::vector<std::vector< std::vector< double > > > > N;
+//	std::vector<std::vector< std::vector< double > > > L;
 	std::vector<double> source;
-	std::vector<Direction> omega;
-  Direction facecenter;
+	std::vector<std::vector< double > > omega;
+  std::vector< double > facecenter;
 	double sigma_t, cell_average;
 	int num_tasks;
 

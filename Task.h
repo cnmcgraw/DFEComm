@@ -26,7 +26,7 @@ public:
 	int groupset_id;
 	int depth;
 	int octant;
-	Direction omega;
+	vector<double> omega;
   vector<vector<int> > incoming, outgoing;
 
 

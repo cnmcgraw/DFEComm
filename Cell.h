@@ -14,7 +14,7 @@
 // is upstream.
 struct Neighbor{
 	int id;
-	Direction direction;
+	std::vector<double> direction;
 	// This will be used for Cellsets neighbors
 	int SML;
   int local_id;
@@ -46,13 +46,13 @@ public:
 	std::vector< Neighbor > neighbors;
 
 	// vector of face normals and face centers (face ID is the vector element)
-	std::vector<Direction> normals;
-	std::vector<Direction> facecenters;
+	std::vector<std::vector<double> > normals;
+	std::vector<std::vector<double> > facecenters;
 
 	// DFEM Matrices (Mass, Surface, and Gradient)
-	std::vector< double > M;
-	std::vector<std::vector<std::vector< Direction > > > N;
-	std::vector<std::vector< Direction > > L;
+	std::vector<std::vector< double > > M;
+	std::vector<std::vector<std::vector< std::vector<double> > > > N;
+	std::vector<std::vector< std::vector<double> > > L;
 
 	// Solution data structures (they're vectors of groupwise numbers
 	std::vector<double> phi, current;
