@@ -3,6 +3,8 @@
 #include <iostream>
 #include <vector>
 
+#include <sstream>
+
 
 Subdomain::Subdomain()
 { }
@@ -12,6 +14,7 @@ Subdomain::~Subdomain()
 
 void Subdomain::BuildSubdomain(int SML_ID, Problem* problem)
 {
+  std::cout << "File: " << __FILE__ << " and line: " << __LINE__ << std::endl;
   num_cellsets.resize(3);
   overload.resize(3);
   partition_function.resize(3);
@@ -23,7 +26,7 @@ void Subdomain::BuildSubdomain(int SML_ID, Problem* problem)
   }
 
   ComputeCellSetID(SML_ID);
-
+std::cout << "File: " << __FILE__ << " and line: " << __LINE__ << std::endl;
   CellSets.resize(total_overload);
   for (int i = 0; i < total_overload; i++)
     CellSets[i].BuildCellSet(CellSetIDs[i], problem);
@@ -44,7 +47,7 @@ void Subdomain::ComputeCellSetID(int SML_ID)
   total_overload = 1;
   std::vector<int> P;
   P.resize(3);
-  // For 2D P_eff in z = 1 and overload in z = 1
+
   for(int i=0; i< 3; i++)
   {
     total_overload *= overload[i];

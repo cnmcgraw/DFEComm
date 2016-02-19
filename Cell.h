@@ -48,6 +48,11 @@ public:
 	// vector of face normals and face centers (face ID is the vector element)
 	std::vector<std::vector<double> > normals;
 	std::vector<std::vector<double> > facecenters;
+  std::vector<int> face_ids;
+  
+  // vector of vertex locations and the centroid of the cell;
+  std::vector<std::vector<double> > vertices;
+  std::vector<double> centroid;
 
 	// DFEM Matrices (Mass, Surface, and Gradient)
 	std::vector<std::vector< double > > M;
@@ -79,8 +84,9 @@ public:
 	// Compute the face normals and face centers for the cell
 	void GetFaceNormals();
 	void GetFaceCenters();
+        void GetVertices(int);
 
-	// This function computes the cell's 4 (or 6) neighbor cells
+	// This function computes the cell's 6) neighbor cells
 	// and the direction those neighbors are upstream
 	void GetNeighbors(int);
 

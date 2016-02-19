@@ -22,17 +22,19 @@ void CellSet::BuildCellSet(int CS_ID, Problem* problem)
   cells_x = 2*problem->num_pin_x*problem->refinement/num_cellsets[0];
   cells_y = 2*problem->num_pin_y*problem->refinement/num_cellsets[1];
   cells_z = problem->z_planes/num_cellsets[2];
+  
+  cells_xy = cells_x * cells_y;
 
   num_groupset = problem->num_groupsets;
   num_angleset = problem->quad.num_angleset;
 
   cells_per_cellset = cells_x*cells_y*cells_z;
-
+std::cout << "File: " << __FILE__ << " and line: " << __LINE__ << std::endl;
   Cells.resize(cells_per_cellset);
   for(int i=0; i<cells_per_cellset; i++){
     Cells[i].BuildCell(i, CS_ID, problem);
   }
-
+std::cout << "File: " << __FILE__ << " and line: " << __LINE__ << std::endl;
   // Set global boundary flags
   globalboundary.resize(6);
   BoundaryFlux.resize(6);
@@ -123,24 +125,21 @@ void CellSet::SetGlobalBoundary(int CS_ID, Problem* problem)
   GetCellSetijk(CS_ID, problem->num_cellsets[0], problem->num_cellsets[1],
     problem->num_cellsets[2], globalijk);
 
-  int size = problem->num_groupsets*problem->group_per_groupset*(problem->num_polar*problem->num_azim) * 4;
 
-  // boundary[0] = 1 on the x boundary
+  // boundary[0] = 1 on the -y boundary
   // boundary[0] = 0 on the interior
-  if (globalijk[0] == problem->num_cellsets[0] - 1)
+  if (globalijk[1] == 0)
   {
     globalboundary[0] = 1;
-    BoundaryFlux[0].resize(cells_y*cells_z*size);
   }
   else
     globalboundary[0] = 0;
 
-  // boundary[1] = 1 on the -x boundary
+  // boundary[1] = 1 on the +x boundary
   // boundary[1] = 0 on the interior
-  if (globalijk[0] == 0)
+  if (globalijk[0] == problem->num_cellsets[0] - 1)
   {
     globalboundary[1] = 1;
-    BoundaryFlux[1].resize(cells_y*cells_z*size);
   }
   else
     globalboundary[1] = 0;
@@ -150,7 +149,6 @@ void CellSet::SetGlobalBoundary(int CS_ID, Problem* problem)
   if (globalijk[1] == problem->num_cellsets[1] - 1)
   {
     globalboundary[2] = 1;
-    BoundaryFlux[2].resize(cells_x*cells_z*size);
   }
   else
     globalboundary[2] = 0;
@@ -160,7 +158,6 @@ void CellSet::SetGlobalBoundary(int CS_ID, Problem* problem)
   if (globalijk[1] == 0)
   {
     globalboundary[3] = 1;
-    BoundaryFlux[3].resize(cells_x*cells_z*size);
   }
   else
     globalboundary[3] = 0;
@@ -170,7 +167,6 @@ void CellSet::SetGlobalBoundary(int CS_ID, Problem* problem)
   if (globalijk[2] == problem->num_cellsets[2] - 1)
   {
     globalboundary[4] = 1;
-    BoundaryFlux[4].resize(cells_x*cells_y*size);
   }
   else
     globalboundary[4] = 0;
@@ -180,7 +176,6 @@ void CellSet::SetGlobalBoundary(int CS_ID, Problem* problem)
   if (globalijk[2] == 0)
   {
     globalboundary[5] = 1;
-    BoundaryFlux[5].resize(cells_x*cells_y*size);
   }
   else
     globalboundary[5] = 0;
@@ -202,33 +197,31 @@ void CellSet::GetNeighbors(int CS_ID)
   }
 
 
-  neighbors[0].direction[0] = 1;
-  neighbors[1].direction[0] = -1;
+  neighbors[0].direction[1] = -1;
+  neighbors[1].direction[0] = 1;
   neighbors[2].direction[1] = 1;
-  neighbors[3].direction[1] = -1;
-  if (neighbors.size() == 6){
-    neighbors[4].direction[2] = 1;
-    neighbors[5].direction[2] = -1;
-  }
+  neighbors[3].direction[0] = -1;
+  neighbors[4].direction[2] = 1;
+  neighbors[5].direction[2] = -1;
 
   // If ID is <0, the CellSet is on a global boundary
-  // id = -1 is on +x boundary, id = -2 is on the -x boundary
-  // id = -3 is on +y boundary, id = -4 is on the -y boundary
+  // id = -1 is on -y boundary, id = -2 is on the +x boundary
+  // id = -3 is on +y boundary, id = -4 is on the -x boundary
   // id = -5 is on +z boundary, id = -6 is on the -z boundary
 
-  // +X neighbor
+  // -Y neighbor
   if (globalboundary[0] == 1)
     neighbors[0].id = -1;
   // Interior
   else
-    neighbors[0].id = CS_ID + 1;
-
-  // -X neighbor
+    neighbors[0].id = CS_ID - num_cellsets[0];
+    
+  // +X neighbor
   if (globalboundary[1] == 1)
     neighbors[1].id = -2;
   // Interior
   else
-    neighbors[1].id = CS_ID - 1;
+    neighbors[1].id = CS_ID + 1;
 
   // +Y neighbor
   if (globalboundary[2] == 1)
@@ -236,13 +229,13 @@ void CellSet::GetNeighbors(int CS_ID)
   // Interior
   else
     neighbors[2].id = CS_ID + num_cellsets[0];
-
-  // -Y neighbor
+    
+  // -X neighbor
   if (globalboundary[3] == 1)
     neighbors[3].id = -4;
   // Interior
   else
-    neighbors[3].id = CS_ID - num_cellsets[0];
+    neighbors[3].id = CS_ID - 1;
 
   // +Z neighbor
   if (globalboundary[4] == 1)
@@ -250,7 +243,6 @@ void CellSet::GetNeighbors(int CS_ID)
   // Interior
   else
     neighbors[4].id = CS_ID + num_cellsets[0] * num_cellsets[1];
-
 
   // -Z neighbor
   if (globalboundary[5] == 1)
@@ -274,13 +266,9 @@ void CellSet::GetNeighborsSML(int CS_ID, Problem* problem)
   
   for(int i = 0; i < neighbors.size(); i++)
   {
-    // If the neighbors cellset id is my cellset id 
-    //  then the same sml owns it.
+    // If we're on a global boundary, set the neighbor SML to negative
     if (neighbors[i].id < 0)
     {
-      // If this is a boundary, set the neighbor SML to 
-      // this SML's id * -1
-     // MPI_Comm_rank(MPI_COMM_WORLD, &neighbors[i].SML);
       neighbors[i].SML = -1;
     }
     else
@@ -308,11 +296,3 @@ void CellSet::GetNeighborsSML(int CS_ID, Problem* problem)
 
   }
 }
-
-void CellSet::SetBoundaryFlux(int boundary, int angleset, int groupset, std::vector<double>& buffer)
-{
-  // Ordered by groupset then angleset
-  for (int i = 0; i < buffer.size(); i++)
-    BoundaryFlux[boundary][groupset*num_angleset*buffer.size() + angleset*buffer.size() + i] = buffer[i];
-}
-

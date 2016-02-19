@@ -59,6 +59,7 @@ void Task::BuildTask(int SML_ID, Problem* problem, Subdomain* subdomain, int cs,
     
   cells_x = 2 * problem->num_pin_x*problem->refinement / problem->num_cellsets[0];
   cells_y = 2 * problem->num_pin_y*problem->refinement / problem->num_cellsets[1];
+  cells_xy = cells_x * cells_y;
   cells_z = problem->z_planes / problem->num_cellsets[2];
 
   cell_per_cellset = cells_x * cells_y * cells_z;
@@ -72,10 +73,14 @@ void Task::BuildTask(int SML_ID, Problem* problem, Subdomain* subdomain, int cs,
 }
 
 void Task::AllocateBuffers(){
+
   plane_data.resize(3);
+  // These will be our surface data structures. We'll pull from interior_data for these
   plane_data[0].resize(cells_y*cells_z*group_per_groupset*angle_per_angleset * 4);
   plane_data[1].resize(cells_x*cells_z*group_per_groupset*angle_per_angleset * 4);
-  plane_data[2].resize(cells_x*cells_y*group_per_groupset*angle_per_angleset * 4);
+  plane_data[2].resize(cells_xy*group_per_groupset*angle_per_angleset * 4);
+  
+
 }
 
 int Task::ComputeTaskID(int cs, int as, int gs){
@@ -111,13 +116,193 @@ double Task::GetBoundaryCondition(int Boundary)
   return bc[Boundary];
 }
 
+void Task::GetInteriorData(std::vector<double >& interior_data)
+{
+  int offset(0), index(0);
+  
+    // If we're moving in the +x direction, need plane_data[0] in -x side of interior_data
+    if(omega[0] > 0)
+    {
+      int i = 0;
+      int size = cells_y*group_per_groupset*angle_per_angleset*4*6;
+      for (int k = 0; k < cells_z; k++)
+      {
+        offset = (2*cells_x + cells_y + k*cells_xy)*group_per_groupset*angle_per_angleset*4*6 + 3;
+        for(int j = 0; j < size; j++, i++)
+        {
+          index =  offset + j;
+          interior_data[index] = plane_data[0][i];
+        }
+      } 
+    }
+    // If we're moving in the -x direction, need plane_data[0] in +x side of interior_data
+    else
+    {
+      int i = 0;
+      int size = cells_y*group_per_groupset*angle_per_angleset*4*6;
+      for (int k = 0; k < cells_z; k++)
+      {
+        offset = (cells_x + k*cells_xy)*group_per_groupset*angle_per_angleset*4*6 + 1;
+        for(int j = 0; j < size; j++, i++)
+        {
+          index =  offset + j;
+          interior_data[index] = plane_data[0][i];
+        }
+      }      
+    }
+    // If we're moving in the +y direction, need plane_data[0] in -y side of interior_data
+    if(omega[1] > 0)
+    {
+      int i = 0;
+      int size = cells_x*group_per_groupset*angle_per_angleset*4*6;
+      for (int k = 0; k < cells_z; k++)
+      {
+        offset = (k*cells_xy)*group_per_groupset*angle_per_angleset*4*6 + 2;
+        for(int j = 0; j < size; j++, i++)
+        {
+          index =  offset + j;
+          interior_data[index] = plane_data[1][i];
+        }
+      }      
+    }
+    // If we're moving in the -y direction, need plane_data[0] in +y side of interior_data
+    else
+    {
+      int i = 0;
+      int size = cells_x*group_per_groupset*angle_per_angleset*4*6;
+      for (int k = 0; k < cells_z; k++)
+      {
+        offset = (cells_x + cells_y + k*cells_xy)*group_per_groupset*angle_per_angleset*4*6 + 0;
+        for(int j = 0; j < size; j++, i++)
+        {
+          index =  offset + j;
+          interior_data[index] = plane_data[1][i];
+        }
+      }       
+    }
+    // If we're moving in the +z direction, need plane_data[0] in -z side of interior_data
+    if(omega[2] > 0)
+    {
+      int i = 0;
+      int size = cells_xy*group_per_groupset*angle_per_angleset*4*6;
+      for (int k = 0; k < size; k++)
+      {
+        offset = 0 + 4;
+        index =  offset + k;
+        interior_data[index] = plane_data[2][k];
+      }      
+    }
+    // If we're moving in the -z direction, need plane_data[0] in +z side of interior_data
+    else
+    {
+      int i = 0;
+      int size = cells_xy*group_per_groupset*angle_per_angleset*4*6;
+      for (int k = 0; k < size; k++)
+      {
+        offset = (cells_z - 1)*cells_xy*group_per_groupset*angle_per_angleset*4*6 + 5;
+        index =  offset + k;
+        interior_data[index] = plane_data[2][k];
+      }      
+    }
+      
+}
+
+void Task::SetPlaneData(std::vector<double> interior_data)
+{
+   int offset(0), index(0);
+  
+    // If we're moving in the -x direction, need plane_data[0] from -x side of interior_data
+    if(omega[0] < 0)
+    {
+      int i = 0;
+      int size = cells_y*group_per_groupset*angle_per_angleset*4*6;
+      for (int k = 0; k < cells_z; k++)
+      {
+        offset = (2*cells_x + cells_y + k*cells_xy)*group_per_groupset*angle_per_angleset*4*6 + 3;
+        for(int j = 0; j < size; j++, i++)
+        {
+          index =  offset + j;
+          plane_data[0][i] = interior_data[index];
+        }
+      } 
+    }
+    // If we're moving in the +x direction, need plane_data[0] in -x side of interior_data
+    else
+    {
+      int i = 0;
+      int size = cells_y*group_per_groupset*angle_per_angleset*4*6;
+      for (int k = 0; k < cells_z; k++)
+      {
+        offset = (cells_x + k*cells_xy)*group_per_groupset*angle_per_angleset*4*6 + 1;
+        for(int j = 0; j < size; j++, i++)
+        {
+          index =  offset + j;
+          plane_data[0][i] = interior_data[index];
+        }
+      }      
+    }
+    // If we're moving in the -y direction, need plane_data[0] in -y side of interior_data
+    if(omega[1] < 0)
+    {
+      int i = 0;
+      int size = cells_x*group_per_groupset*angle_per_angleset*4*6;
+      for (int k = 0; k < cells_z; k++)
+      {
+        offset = (k*cells_xy)*group_per_groupset*angle_per_angleset*4*6 + 0;
+        for(int j = 0; j < size; j++, i++)
+        {
+          index =  offset + j;
+          plane_data[1][i] = interior_data[index];
+        }
+      }      
+    }
+    // If we're moving in the +y direction, need plane_data[0] in +y side of interior_data
+    else
+    {
+      int i = 0;
+      int size = cells_x*group_per_groupset*angle_per_angleset*4*6;
+      for (int k = 0; k < cells_z; k++)
+      {
+        offset = (cells_x + cells_y + k*cells_xy)*group_per_groupset*angle_per_angleset*4*6 + 2;
+        for(int j = 0; j < size; j++, i++)
+        {
+          index =  offset + j;
+          plane_data[1][i] = interior_data[index];
+        }
+      }       
+    }
+    // If we're moving in the -z direction, need plane_data[0] in -z side of interior_data
+    if(omega[2] < 0)
+    {
+      int i = 0;
+      int size = cells_xy*group_per_groupset*angle_per_angleset*4*6;
+      for (int k = 0; k < size; k++)
+      {
+        offset = 0 + 4;
+        index =  offset + k;
+        plane_data[2][k] = interior_data[index];
+      }      
+    }
+    // If we're moving in the +z direction, need plane_data[0] in +z side of interior_data
+    else
+    {
+      int i = 0;
+      int size = cells_xy*group_per_groupset*angle_per_angleset*4*6;
+      for (int k = 0; k < size; k++)
+      {
+        offset = (cells_z - 1)*cells_xy*group_per_groupset*angle_per_angleset*4*6 + 5;
+        index =  offset + k;
+        plane_data[2][k] = interior_data[index];
+      }      
+    } 
+  
+  
+}
 
 void Task::Get_buffer_from_bc(int dim)
 {
-
   if (dim == 0)
   {
-    // Need to set the cell averages, all the slopes will be zero
     int size = cells_y*cells_z*group_per_groupset*angle_per_angleset;
     for (int i = 0; i < size; i++)
     {
@@ -126,12 +311,10 @@ void Task::Get_buffer_from_bc(int dim)
       plane_data[0][j + 1] = 0;
       plane_data[0][j + 2] = 0;
       plane_data[0][j + 3] = 0;
-      
     }
   }
   else if (dim == 1)
   {
-    // Need to set the cell averages, all the slopes will be zero
     int size = cells_x*cells_z*group_per_groupset*angle_per_angleset;
     for (int i = 0; i < size; i++)
     {
@@ -144,7 +327,7 @@ void Task::Get_buffer_from_bc(int dim)
   }
   else
   {
-    int size = cells_x*cells_y*group_per_groupset*angle_per_angleset;
+    int size = cells_xy*group_per_groupset*angle_per_angleset;
     for (int i = 0; i < size; i++)
     {
       int j = 4 * i;

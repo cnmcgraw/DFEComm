@@ -26,18 +26,6 @@ public:
 	vector<int> CellSetIDs;
 	vector< CellSet > CellSets;
 
-	// Matrices holding buffer space for incoming information
-	// They are contiguous vectors of psi's in order of cells, 
-	// (in the dimensions not in the name)
-	// then groups, and finally angles
-  vector<vector<double> > buffer, Send_buffer;
-
-	// This hold not-yet-needed messages
-	vector<vector<double> > Received_buffer;
-	vector<vector<int> > Received_info;
-	std::queue<int> Received_open;
-	int max_size;
-
 	// Build all the cellsets this SML owns
 	void BuildSubdomain(int, Problem*);
 

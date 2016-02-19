@@ -20,7 +20,7 @@ public:
 	std::vector< Cell > Cells;
 
 	int cells_per_cellset;
-	int cells_x, cells_y, cells_z;
+	int cells_x, cells_y, cells_xy, cells_z;
 	int num_groupset, num_angleset;
 
 	// Vector of neighbor cellsets
@@ -59,10 +59,6 @@ public:
 
 	// This function returns the SML of each neighbor
 	void GetNeighborsSML(int, Problem*);
-
-	// This function sets the boundary buffer
-	void SetBoundaryFlux(int, int, int, std::vector<double>&);
-
 
 
 private:

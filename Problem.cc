@@ -16,6 +16,7 @@ using std::vector;
 Subdomain subdomain;
 ParallelComm comm;
 std::vector<Task> All_Tasks;
+std::vector< double > interior_data;
 
 // This struct compares tasks:
 // First by depth (biggest wins),
@@ -61,6 +62,7 @@ void Problem::BuildProblem(Problem_Input* input)
   z_planes = input->z_planes;
   sp_disc = input->sp_disc;
   bcs = input->bcs;
+  max_faces = 6;
 
 
   // Getting Angular data from the input
@@ -78,15 +80,19 @@ void Problem::BuildProblem(Problem_Input* input)
   // Getting Partition parameters from the input
   num_SML = input->num_SML;
   partition_type = input->partition_type;
+  partition_function.resize(3);
   partition_function = input->partition_function;
+  overload.resize(3);
   overload = input->overload;
+  num_cellsets.resize(3);
   num_cellsets = input->num_cellsets;
   sched_type = input->sched_type;
   verbose = input->verbose;
-
+  
+std::cout << "File: " << __FILE__ << " and line: " << __LINE__ << std::endl;
   // Build the subdomain 
   subdomain.BuildSubdomain(rank, this);
-
+std::cout << "File: " << __FILE__ << " and line: " << __LINE__ << std::endl;
   // Build the task vector
   // The size is # Anglesets * # Groupsets * # Cellsets on this SML
   num_tasks = quad.num_angleset*num_groupsets*subdomain.total_overload;
@@ -133,6 +139,12 @@ void Problem::BuildProblem(Problem_Input* input)
   // Resize the source. Piece-wise constant in each cell
   source.resize(4);
   
+  // This will be the data structure we'll be writing into.
+  // We'll pull from plane_data at the beginning of the task and write into it at the end.
+  // This structure assumes that all tasks are the same size.
+  interior_data.resize(All_Tasks[0].cells_xy*All_Tasks[0].cells_z*max_faces*All_Tasks[0].group_per_groupset*All_Tasks[0].angle_per_angleset * 4);
+  std::cout << "Made it past resizing interior_data" << std::endl;
+  
 }
 
 void Problem::Sweep(std::ofstream &output)
@@ -153,15 +165,17 @@ void Problem::Sweep(std::ofstream &output)
   std::vector<Task>::iterator it_end = All_Tasks.end();
   
   // Necessary temporary data structures for the sweep
-  std::vector<int> cell_ijk(3, 0);
+  std::vector<int> cell_ijk(2, 0);
   std::vector<double> temp_solve(4, 0);
   Neighbor neighbor;
   int task_it(0), recv(0), target(0);
   
   // Cell Loop
-  int cells_x, cells_y, cells_z;
+  int cells_x, cells_y, cells_xy, cells_z;
   int cell_per_cellset, angle_per_angleset, octant;
   vector<vector<int> > incoming, outgoing;
+  int num_inc_faces, num_out_faces;
+  double cell_average;
   int if1, if2, if3, of1, of2, of3;
   
   // Angle Loop
@@ -184,6 +198,7 @@ void Problem::Sweep(std::ofstream &output)
     // Get cellset and angleset information
     cells_x = subdomain.CellSets[(*it).cellset_id_loc].cells_x;
     cells_y = subdomain.CellSets[(*it).cellset_id_loc].cells_y;
+    cells_xy = subdomain.CellSets[(*it).cellset_id_loc].cells_xy;
     cells_z = subdomain.CellSets[(*it).cellset_id_loc].cells_z;
     cell_per_cellset = (*it).cell_per_cellset;
     angle_per_angleset = (*it).angle_per_angleset;
@@ -191,12 +206,8 @@ void Problem::Sweep(std::ofstream &output)
     octant = quad.Anglesets[(*it).angleset_id].octant;
     incoming = (*it).incoming;
     outgoing = (*it).outgoing;
-    if1 = incoming[0][0];
-    if2 = incoming[1][0];
-    if3 = incoming[2][0];
-    of1 = outgoing[0][0];
-    of2 = outgoing[1][0];
-    of3 = outgoing[2][0];
+    num_inc_faces = incoming.size();
+    num_out_faces = outgoing.size();
     
     for (int m = 0; m < angle_per_angleset; m++){
       omega[m][0] = quad.Anglesets[(*it).angleset_id].Omegas[m][0];
@@ -211,6 +222,9 @@ void Problem::Sweep(std::ofstream &output)
 
     start_task = MPI_Wtime();
     
+    // Need to pull in data to our interior data structure:
+    (*it).GetInteriorData(interior_data);
+    
     // We march through the cells first in x, then y, then z
     // The order (left to right or right to left) depends on what 
     // octant the angleset is in so we call GetCell to figure out where we are
@@ -224,9 +238,6 @@ void Problem::Sweep(std::ofstream &output)
           cell_id = GetCell(i, j, k, cells_x, cells_y, cells_z, octant);
           Cell &my_cell = subdomain.CellSets[(*it).cellset_id_loc].Cells[cell_id];
           my_cell.GetCellijk(cell_id, cells_x, cells_y, cells_z, cell_ijk);
-          cijk0 = cell_ijk[0]; 
-          cijk1 = cell_ijk[1]; 
-          cijk2 = cell_ijk[2];
           sig_tot = my_cell.GetSigmaTot();
 
           // Get the cell's DFEM Matrices for building the A matrix
@@ -253,54 +264,39 @@ void Problem::Sweep(std::ofstream &output)
             {
               for (int b = 0; b < 4; b++)
               { 
-                // Add the surface matrix contribution for incoming cell faces
-                A_tilde[a][b] = ( ox * L[a][b][0]      +  oy * L[a][b][1]       +  oz * L[a][b][2]) 
-                              + (-ox * N[if1][a][b][0] + -oy * N[if1][a][b][1]  + -oz * N[if1][a][b][2])
-                              + (-ox * N[if2][a][b][0] + -oy * N[if2][a][b][1]  + -oz * N[if2][a][b][2])
-                              + (-ox * N[if3][a][b][0] + -oy * N[if3][a][b][1]  + -oz * N[if3][a][b][2]);
+                for (int c = 0; c < 3; c++)
+                {
+                  // Add the surface matrix contribution for incoming cell faces
+                  A_tilde[a][b] += omega[m][c] * L[a][b][c];
+                  for (int f = 0; f < num_inc_faces; f++)
+                  {
+                    A_tilde[a][b] += -omega[m][c] * N[ incoming[f][0] ][a][b][c];
+                  }
+                }
               }
+              RHS[a] = M[a][a] * source[a];
             }
 
-            // Prefetch the incoming fluxes
-            for (int g = 0; g < group_per_groupset; g++)
-            {
-              bloc[g] = (*it).Get_buffer_loc(cijk0, cijk1, cijk2, g, m, if1);
-            }
+            
             // Loop over groups in this groupset
             for (int g = 0; g < group_per_groupset; g++)
             {
               start_group = MPI_Wtime();
 
               // Initialize b and add incoming fluxes for the RHS
-              
-              for (int a = 0; a < 4; a++)
+              for (int f = 0; f < num_inc_faces; f++)
               {
-                std::vector<std::vector<double> > &T = N[if1][a];
-                bg[a] = M[a][a] * source[a]
-                      + (-ox * T[0][0] + -oy * T[0][1]  + -oz * T[0][2])*bloc[g][0]
-                      + (-ox * T[1][0] + -oy * T[1][1]  + -oz * T[1][2])*bloc[g][1]
-                      + (-ox * T[2][0] + -oy * T[2][1]  + -oz * T[2][2])*bloc[g][2]
-                      + (-ox * T[3][0] + -oy * T[3][1]  + -oz * T[3][2])*bloc[g][3];
-              } 
-
-              (*it).Get_buffer_loc(cijk0, cijk1, cijk2, g, m, if2);
-              for (int a = 0; a < 4; a++)
-              {
-                std::vector<std::vector<double> > &T = N[if2][a];
-                bg[a] += (-ox * T[0][0] + -oy * T[0][1]  + -oz * T[0][2])*bloc[g][0]
-                       + (-ox * T[1][0] + -oy * T[1][1]  + -oz * T[1][2])*bloc[g][1]
-                       + (-ox * T[2][0] + -oy * T[2][1]  + -oz * T[2][2])*bloc[g][2]
-                       + (-ox * T[3][0] + -oy * T[3][1]  + -oz * T[3][2])*bloc[g][3];
-              } 
-
-              (*it).Get_buffer_loc(cijk0, cijk1, cijk2, g, m, if3);
-              for (int a = 0; a < 4; a++)
-              {
-                std::vector<std::vector<double> > &T = N[if3][a];
-                bg[a] += (-ox * T[0][0] + -oy * T[0][1]  + -oz * T[0][2])*bloc[g][0]
-                       + (-ox * T[1][0] + -oy * T[1][1]  + -oz * T[1][2])*bloc[g][1]
-                       + (-ox * T[2][0] + -oy * T[2][1]  + -oz * T[2][2])*bloc[g][2]
-                       + (-ox * T[3][0] + -oy * T[3][1]  + -oz * T[3][2])*bloc[g][3];
+                bloc[g] = (*it).Get_buffer_loc(cell_ijk[0]+cells_x*cell_ijk[1], cell_ijk[2], g, m, incoming[f][0], interior_data);
+                for (int a = 0; a < 4; a++)
+                {
+                  for (int b = 0; b < 4; b++)
+                  {
+                    for (int c = 0; c < 3; c++)
+                    {
+                      bg[a] += (-omega[m][c] * N[incoming[f][0]][a][b][c])*bloc[g][b];
+                    }
+                  }
+                } 
               }
           
               // Add the contribution to the A matrix and the RHS vector
@@ -323,20 +319,14 @@ void Problem::Sweep(std::ofstream &output)
               // Now we need to translate the cell average to the average on each 
               // face before we push to the down stream neighbers
               // This allows for direct data movement (no cell to cell mapping needed)
-              bg[0] += my_cell.facecenters[of1][0]*bg[1] + my_cell.facecenters[of1][1]*bg[2] + my_cell.facecenters[of1][2]*bg[3];
-              bloc[g] = (*it).Get_buffer_loc(cijk0, cijk1, cijk2, g, m, of1);
-              for(int i = 0;i < 4;++i)
-                bloc[g][i] = bg[i];
-
-              bg[0] += my_cell.facecenters[of2][0]*bg[1] + my_cell.facecenters[of2][1]*bg[2] + my_cell.facecenters[of2][2]*bg[3];
-              bloc[g] = (*it).Get_buffer_loc(cijk0, cijk1, cijk2, g, m, of2);
-              for(int i = 0;i < 4;++i)
-                bloc[g][i] = bg[i];
-
-              bg[0] += my_cell.facecenters[of3][0]*bg[1] + my_cell.facecenters[of3][1]*bg[2] + my_cell.facecenters[of3][2]*bg[3];
-              bloc[g] = (*it).Get_buffer_loc(cijk0, cijk1, cijk2, g, m, of3);
-              for(int i = 0;i < 4;++i)
-                bloc[g][i] = bg[i];
+              cell_average = bg[0];
+              for (int f = 0; f < num_out_faces; f++)
+              {
+                bg[0] = cell_average + my_cell.facecenters[outgoing[f][0]][0]*bg[1] + my_cell.facecenters[outgoing[f][0]][1]*bg[2] + my_cell.facecenters[outgoing[f][0]][2]*bg[3];
+                bloc[g] = (*it).Get_buffer_loc(cell_ijk[0]+cells_x*cell_ijk[1], cell_ijk[2], g, m, outgoing[f][0], interior_data);
+                for(int i = 0;i < 4;++i)
+                  bloc[g][i] = bg[i];
+              }
               
               duration_group += MPI_Wtime() - start_group;
             } //groups
@@ -346,6 +336,9 @@ void Problem::Sweep(std::ofstream &output)
         } // cells in x
       } // cells in y
     } // cells in z
+    
+    // Now we need to set the plane_data structure with our interior data 
+    (*it).SetPlaneData(interior_data);
     
     duration_task += (MPI_Wtime() - start_task);
     start_send = MPI_Wtime();

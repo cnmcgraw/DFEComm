@@ -55,30 +55,44 @@ public:
 	// Allocate the send buffers
 	void AllocateBuffers(void);
 
-	// Returns an iterator to the buffer location
-  inline std::vector<double>::iterator Get_buffer_loc(int cell_x, int cell_y, int cell_z, int group, int angle, int face)
-  {
-    if (face == 0 || face == 1)
-    {
-      return plane_data[0].begin() + (cell_y*cells_z*group_per_groupset*angle_per_angleset * 4 + 
-        cell_z*group_per_groupset*angle_per_angleset * 4 + group*angle_per_angleset * 4 + angle * 4);
-    }
-    else if (face == 2 || face == 3)
-    {
-      return plane_data[1].begin() + (cell_x*cells_z*group_per_groupset*angle_per_angleset * 4 +
-        cell_z*group_per_groupset*angle_per_angleset * 4 + group*angle_per_angleset * 4 + angle * 4);
-    }
-    else
-    {
-      return plane_data[2].begin() + (cell_x*cells_y*group_per_groupset*angle_per_angleset * 4 + 
-        cell_y*group_per_groupset*angle_per_angleset * 4 + group*angle_per_angleset * 4 + angle * 4);
-    }
-  }
+	// Returns an iterator to the buffer location in interior data
+        inline std::vector<double>::iterator Get_buffer_loc(int cell_xy, int cell_z, int group, int angle, int face, std::vector<double>interior_data)
+        {
+         return interior_data.begin() + (cell_z*cells_xy*group_per_groupset*angle_per_angleset * 4*6 + 
+            cell_xy*group_per_groupset*angle_per_angleset * 4*6 + group*angle_per_angleset * 4*6 + angle * 4*6 + face);
+            
+ //            if (face == 0 || face == 1)
+ //   {
+ //     return interior_data[0].begin() + (cell_xy*cells_z*group_per_groupset*angle_per_angleset * 4 + 
+ //       cell_z*group_per_groupset*angle_per_angleset * 4 + group*angle_per_angleset * 4 + angle * 4);
+ //   }
+ //   else if (face == 2 || face == 3)
+ //   {
+ //     return interior_data[1].begin() + (cell_xy*cells_z*group_per_groupset*angle_per_angleset * 4 +
+ //       cell_z*group_per_groupset*angle_per_angleset * 4 + group*angle_per_angleset * 4 + angle * 4);
+ //   }
+ //   else
+ //   {
+ //     return interior_data[2].begin() + (cell_xy*group_per_groupset*angle_per_angleset * 4 + 
+ //       cell_xy*group_per_groupset*angle_per_angleset * 4 + group*angle_per_angleset * 4 + angle * 4);
+ //   }   
+        }
+  
+	// Gets the plane data and puts it in interior data
+        void GetInteriorData(std::vector<double>& interior_data);
+        
+        // Puts the interior data into plane data
+        void SetPlaneData(std::vector<double> interior_data);
         
 	void Get_buffer_from_bc(int);
 
+        // cells_x and cells_y will be the number of cells in x and y on the boundary.
+        // cells_xy will be the total number of cells in the xy plane.
+        // In rectangular grids, cells_xy will be the simple product of cells_x and cells_y.
+        // In spider web grids, we'll need to sum up the total number of cells for this.
 	int cells_x;
 	int cells_y;
+	int cells_xy;
 	int cells_z;
 
   int cell_per_cellset;

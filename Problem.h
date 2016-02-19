@@ -23,6 +23,7 @@ public:
 	int refinement;
 	int sp_disc;
 	int bcs;
+        int max_faces;
 
 	// Angular Data
 	int num_polar, num_azim;
@@ -37,7 +38,7 @@ public:
 	int partition_type;
 	std::vector< int > partition_function, overload, num_cellsets;
 	int sched_type;
-  bool verbose;
+        bool verbose;
 
 	// Solution Data Structures
 
@@ -53,8 +54,8 @@ public:
 	// Zeroes out the phi vector before each sweep.
 	void ZeroPhi();
   
-  // Computes the average phi and standard deviation of phi 
-  void ComputePhi();
+        // Computes the average phi and standard deviation of phi 
+        void ComputePhi();
 
 private:
 	// Matrices to invert during the sweep
@@ -62,12 +63,10 @@ private:
 	std::vector< std::vector< double > > A_tilde, A;
 	std::vector< double > RHS;
 	std::vector< double > bg;
-//	std::vector< double > M;
-//	std::vector<std::vector<std::vector< std::vector< double > > > > N;
-//	std::vector<std::vector< std::vector< double > > > L;
+        
 	std::vector<double> source;
 	std::vector<std::vector< double > > omega;
-  std::vector< double > facecenter;
+        std::vector< double > facecenter;
 	double sigma_t, cell_average;
 	int num_tasks;
 
