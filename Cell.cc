@@ -41,7 +41,9 @@ void Cell::BuildCell(int Local_ID, int CS_ID, Problem* problem)
   // Figure out global Cell_ID of 6 neighbors
   num_cellsets.resize(3);
   num_cellsets = problem->num_cellsets;
-  neighbors.resize(6);
+  num_faces = 6;
+  max_faces = problem->max_faces;
+  neighbors.resize(num_faces);
   GetNeighbors(CS_ID);
 
   // Build the DFEM Matrices
@@ -87,11 +89,17 @@ void Cell::SetLocalBoundary()
 
 void Cell::GetCellijk(int Cell_ID, int Dx, int Dy, int Dz, std::vector<int>& ijk)
 {
-  ijk[1] = (int)(Cell_ID/(Dx*Dy));
-  int y = (int)((Cell_ID-ijk[2]*Dx*Dy)/Dx);
-  int x = Cell_ID-ijk[1]*Dx - ijk[2]*Dx*Dy;
   
-  ijk[0] = x + Dx*y;
+  ijk[2] = (int)(Cell_ID/(Dx*Dy));
+  ijk[1] = (int)((Cell_ID-ijk[2]*Dx*Dy)/Dx);
+  ijk[0] = Cell_ID-ijk[1]*Dx - ijk[2]*Dx*Dy;
+  
+  // This is how we'd calculate z and the xy components
+//  ijk[1] = (int)(Cell_ID/(Dx*Dy));
+//  int y = (int)((Cell_ID-ijk[2]*Dx*Dy)/Dx);
+//  int x = Cell_ID-ijk[1]*Dx - ijk[2]*Dx*Dy;
+  
+//  ijk[0] = x + Dx*y;
 }
 
 void Cell::ComputeCellID(int Local_ID, int CS_ID, Problem* problem)
@@ -128,76 +136,128 @@ void Cell::GetNeighbors(int CS_ID)
   neighbors[1].direction[0] = 1; //+x
   neighbors[2].direction[1] = 1; //+y
   neighbors[3].direction[0] = -1; //-x
-  neighbors[4].direction[2] = 1; //+z
-  neighbors[5].direction[2] = -1; //-z
+  neighbors[4].direction[2] = -1; //+z
+  neighbors[5].direction[2] = 1; //-z
+  
+  // This is the face id for the neighboring face.
+  // We can compute this for spiderweb grids, it's just more complicated
+  neighbors[0].face = 2; //-y
+  neighbors[1].face = 3; //+x
+  neighbors[2].face = 0; //+y
+  neighbors[3].face = 1; //-x
+  neighbors[4].face = 5; //+z
+  neighbors[5].face = 4; //-z
 
 
     // -Y neighbor
   if(localboundary[1] == -1)
   {
     neighbors[0].id = CellID - cells_per_cellset*num_cellsets[0] + (cells_y - localijk[1] - 1)*cells_x;
+    neighbors[0].cs = 1;
   }
   // Interior
   else
   {
     neighbors[0].id = CellID - cells_x;
+    neighbors[0].cs = 0;
   }
   
   // +X neighbor
   if(localboundary[0] == 1)
   {
     neighbors[1].id = CellID + cells_per_cellset - (cells_x - 1);
+    neighbors[1].cs = 1;
   }
   // Interior
   else
   {
     neighbors[1].id = CellID + 1;
+    neighbors[1].cs = 0;
   }
 
   // +Y neighbor
   if(localboundary[1] == 1)
   {
     neighbors[2].id = CellID + cells_per_cellset*num_cellsets[0] - localijk[1]*cells_x;
+    neighbors[2].cs = 1;
   }
   // Interior
   else
   {
     neighbors[2].id = CellID + cells_x;
+    neighbors[2].cs = 0;
   }
 
   // -X neighbor
   if(localboundary[0] == -1)
   {
     neighbors[3].id = CellID - cells_per_cellset + (cells_x - 1);
+    neighbors[3].cs = 1;
   }
   // Interior
   else
   {
     neighbors[3].id = CellID - 1;
-  }
-
-  // +Z neighbor
-  if(localboundary[2] == 1)
-  {
-    neighbors[4].id = CellID + cells_per_cellset*num_cellsets[0]*num_cellsets[1] - localijk[2]*cells_x*cells_y;
-  }
-  // Interior
-  else
-  {
-    neighbors[4].id = CellID + cells_x*cells_y;
+    neighbors[3].cs = 0;
   }
 
   // -Z neighbor
   if(localboundary[2] == -1)
   {
-    neighbors[5].id = CellID - cells_per_cellset*num_cellsets[0]*num_cellsets[1] + (cells_z - localijk[2])*cells_x*cells_y;
+    neighbors[4].id = CellID - cells_per_cellset*num_cellsets[0]*num_cellsets[1] + (cells_z - localijk[2])*cells_x*cells_y;
+    neighbors[4].cs = 1;
   }
   // Interior
   else
   {
-    neighbors[5].id = CellID - cells_x*cells_y;
+    neighbors[4].id = CellID - cells_x*cells_y;
+    neighbors[4].cs = 0;
   }
-    
+  
+  // +Z neighbor
+  if(localboundary[2] == 1)
+  {
+    neighbors[5].id = CellID + cells_per_cellset*num_cellsets[0]*num_cellsets[1] - localijk[2]*cells_x*cells_y;
+    neighbors[5].cs = 1;
+  }
+  // Interior
+  else
+  {
+    neighbors[5].id = CellID + cells_x*cells_y;
+    neighbors[5].cs = 0;
+  }
+}
+
+void Cell::GetCellInOut(std::vector<double> omega, std::vector<int>& incoming, std::vector<std::vector<int> >& outgoing)
+{
+    int r(0), s(0);
+    for(int f = 0; f < num_faces; f++)
+    {
+      if (dot(omega, neighbors[f].direction) < 0)
+      {
+        incoming[r] = f;
+        r += 1;
+      }
+      else
+      {
+       // If outgoing neighbor is in this cell-set, we'll compute the neighbors id for the face
+       // If it is in another cell-set, we set the outgoing face to this cell's id for that face
+        if(neighbors[f].cs == 0)
+        {
+          outgoing[s][0] = neighbors[f].id;
+          outgoing[s][1] = f;
+          outgoing[s][2] = neighbors[f].face;
+          s += 1;
+        }
+        else
+        {
+          outgoing[s][0] = CellID;
+          outgoing[s][1] = f;
+          outgoing[s][2] = f;
+          s += 1; 
+        }        
+      }
+    }
 }
 
 void Cell::GetFaceNormals()
@@ -214,8 +274,8 @@ void Cell::GetFaceNormals()
   normals[1][0] = 1.;
   normals[2][1] = 1.;
   normals[3][0] = -1.;
-  normals[4][1] = 1.;
-  normals[5][1] = -1.;
+  normals[4][1] = -1.;
+  normals[5][1] = 1.;
 }
 
 void Cell::GetFaceCenters()
@@ -234,8 +294,8 @@ void Cell::GetFaceCenters()
   facecenters[1][0] = delta_x/2.;
   facecenters[2][1] = delta_y/2.;
   facecenters[3][0] = -delta_x/2.;
-  facecenters[4][2] = delta_z/2.;
-  facecenters[5][2] = -delta_z/2.;
+  facecenters[4][2] = -delta_z/2.;
+  facecenters[5][2] = delta_z/2.;
 }
 
 void Cell::GetVertices(int CellID)
@@ -244,7 +304,7 @@ void Cell::GetVertices(int CellID)
   std::vector<int> cell_ijk(3,0);
   GetCellijk(CellID, cells_x, cells_y, cells_z, cell_ijk);
   
-  vertices.resize(6, std::vector<double>(3));
+  vertices.resize(8, std::vector<double>(3));
   centroid.resize(3, 0.0);
   
   // Centroid of the cell
@@ -319,7 +379,7 @@ void Cell::ComputeDFEMMatrices()
 
   // Face 2: e_n = (0, 1, 0)
   N[2][0][0][1] = delta_x*delta_z;
-  N[2][0][1][1] = delta_x*delta_z;
+  N[2][0][2][1] = delta_x*delta_z;
   N[2][1][1][1] = delta_x*delta_z/12.;
   N[2][2][0][1] = delta_x*delta_z;
   N[2][2][2][1] = delta_x*delta_z;
@@ -336,15 +396,15 @@ void Cell::ComputeDFEMMatrices()
     }
   }
 
-  // Face 4: e_n = (0, 0, 1)
-  N[4][0][0][2] = delta_x*delta_y;
-  N[4][0][1][2] = delta_x*delta_y;
-  N[4][1][1][2] = delta_x*delta_y/12.;
-  N[4][2][2][2] = delta_x*delta_y/12.;
+  // Face 4: e_n = (0, 0, -1)
+  N[4][0][0][2] = -delta_x*delta_y;
+  N[4][0][3][2] = delta_x*delta_y;
+  N[4][1][1][2] = -delta_x*delta_y/12.;
+  N[4][2][2][2] = -delta_x*delta_y/12.;
   N[4][3][0][2] = delta_x*delta_y;
-  N[4][3][3][2] = delta_x*delta_y;
+  N[4][3][3][2] = -delta_x*delta_y;
 
-  // Face 5: e_n = (0, 0, -1)
+  // Face 5: e_n = (0, 0, 1)
   for(int i=0; i< N[5].size(); i++)
   {
     for(int j=0; j<N[5].size();j++)

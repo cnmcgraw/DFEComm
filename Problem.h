@@ -23,7 +23,7 @@ public:
 	int refinement;
 	int sp_disc;
 	int bcs;
-        int max_faces;
+  int max_faces;
 
 	// Angular Data
 	int num_polar, num_azim;
@@ -41,7 +41,7 @@ public:
         bool verbose;
 
 	// Solution Data Structures
-
+        std::vector< double > interior_data;
 
 
 public:	

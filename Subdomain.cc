@@ -14,7 +14,7 @@ Subdomain::~Subdomain()
 
 void Subdomain::BuildSubdomain(int SML_ID, Problem* problem)
 {
-  std::cout << "File: " << __FILE__ << " and line: " << __LINE__ << std::endl;
+
   num_cellsets.resize(3);
   overload.resize(3);
   partition_function.resize(3);
@@ -26,7 +26,7 @@ void Subdomain::BuildSubdomain(int SML_ID, Problem* problem)
   }
 
   ComputeCellSetID(SML_ID);
-std::cout << "File: " << __FILE__ << " and line: " << __LINE__ << std::endl;
+
   CellSets.resize(total_overload);
   for (int i = 0; i < total_overload; i++)
     CellSets[i].BuildCellSet(CellSetIDs[i], problem);

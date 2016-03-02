@@ -15,6 +15,8 @@
 struct Neighbor{
 	int id;
 	std::vector<double> direction;
+  int face;
+  int cs;
 	// This will be used for Cellsets neighbors
 	int SML;
   int local_id;
@@ -22,7 +24,10 @@ struct Neighbor{
 	Neighbor operator =(Neighbor a){
 		id = a.id;
 		direction = a.direction;
+    face = a.face;
+    cs = a.cs;
 		SML = a.SML;
+    local_id = a.local_id;
 		return *this;
 	}
 };
@@ -53,6 +58,7 @@ public:
   // vector of vertex locations and the centroid of the cell;
   std::vector<std::vector<double> > vertices;
   std::vector<double> centroid;
+  int num_faces, max_faces;
 
 	// DFEM Matrices (Mass, Surface, and Gradient)
 	std::vector<std::vector< double > > M;
@@ -84,11 +90,14 @@ public:
 	// Compute the face normals and face centers for the cell
 	void GetFaceNormals();
 	void GetFaceCenters();
-        void GetVertices(int);
+  void GetVertices(int);
 
 	// This function computes the cell's 6) neighbor cells
 	// and the direction those neighbors are upstream
 	void GetNeighbors(int);
+  
+  // This function returns in the incoming and outgoing faces, given a direction
+  void GetCellInOut(std::vector<double>, std::vector<int>& , std::vector<std::vector<int> >&);
 
 	// This function computes the Mass, Surface, and Gradient matrix for the cell
 	void ComputeDFEMMatrices();

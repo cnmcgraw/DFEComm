@@ -16,7 +16,6 @@ using std::vector;
 Subdomain subdomain;
 ParallelComm comm;
 std::vector<Task> All_Tasks;
-std::vector< double > interior_data;
 
 // This struct compares tasks:
 // First by depth (biggest wins),
@@ -89,10 +88,9 @@ void Problem::BuildProblem(Problem_Input* input)
   sched_type = input->sched_type;
   verbose = input->verbose;
   
-std::cout << "File: " << __FILE__ << " and line: " << __LINE__ << std::endl;
   // Build the subdomain 
   subdomain.BuildSubdomain(rank, this);
-std::cout << "File: " << __FILE__ << " and line: " << __LINE__ << std::endl;
+
   // Build the task vector
   // The size is # Anglesets * # Groupsets * # Cellsets on this SML
   num_tasks = quad.num_angleset*num_groupsets*subdomain.total_overload;
@@ -142,9 +140,7 @@ std::cout << "File: " << __FILE__ << " and line: " << __LINE__ << std::endl;
   // This will be the data structure we'll be writing into.
   // We'll pull from plane_data at the beginning of the task and write into it at the end.
   // This structure assumes that all tasks are the same size.
-  interior_data.resize(All_Tasks[0].cells_xy*All_Tasks[0].cells_z*max_faces*All_Tasks[0].group_per_groupset*All_Tasks[0].angle_per_angleset * 4);
-  std::cout << "Made it past resizing interior_data" << std::endl;
-  
+  interior_data.resize(All_Tasks[0].cells_xy*All_Tasks[0].cells_z*max_faces*All_Tasks[0].group_per_groupset*All_Tasks[0].angle_per_angleset * 4);  
 }
 
 void Problem::Sweep(std::ofstream &output)
@@ -165,7 +161,7 @@ void Problem::Sweep(std::ofstream &output)
   std::vector<Task>::iterator it_end = All_Tasks.end();
   
   // Necessary temporary data structures for the sweep
-  std::vector<int> cell_ijk(2, 0);
+  std::vector<int> cell_ijk(2, 0), neighbor_ijk(2,0);
   std::vector<double> temp_solve(4, 0);
   Neighbor neighbor;
   int task_it(0), recv(0), target(0);
@@ -173,14 +169,17 @@ void Problem::Sweep(std::ofstream &output)
   // Cell Loop
   int cells_x, cells_y, cells_xy, cells_z;
   int cell_per_cellset, angle_per_angleset, octant;
-  vector<vector<int> > incoming, outgoing;
+  vector<vector<int> > tincoming(3,vector<int>(2,0)), toutgoing(3, std::vector<int>(3,0));
+  vector<int> incoming(3,0);
+  vector<vector<int> > outgoing(3, vector<int>(3,0));
   int num_inc_faces, num_out_faces;
   double cell_average;
+  int it_index = 0;
   int if1, if2, if3, of1, of2, of3;
   
   // Angle Loop
   int cell_id, cijk0, cijk1, cijk2;
-  omega.resize((*it).angle_per_angleset, std::vector<double>(3));
+  omega.resize(All_Tasks[0].angle_per_angleset, std::vector<double>(3,0.0));
   double ox, oy, oz;
   
   // Group Loop
@@ -204,10 +203,6 @@ void Problem::Sweep(std::ofstream &output)
     angle_per_angleset = (*it).angle_per_angleset;
     
     octant = quad.Anglesets[(*it).angleset_id].octant;
-    incoming = (*it).incoming;
-    outgoing = (*it).outgoing;
-    num_inc_faces = incoming.size();
-    num_out_faces = outgoing.size();
     
     for (int m = 0; m < angle_per_angleset; m++){
       omega[m][0] = quad.Anglesets[(*it).angleset_id].Omegas[m][0];
@@ -248,6 +243,14 @@ void Problem::Sweep(std::ofstream &output)
           // Since the source is piece-wise constant, we only need to update the average value
           source[0] = my_cell.GetSource();
           
+          // We need the incoming and outgoing face for this cell
+          my_cell.GetCellInOut(omega[0], incoming, outgoing);
+          
+          num_inc_faces = incoming.size();
+          num_out_faces = outgoing.size();
+          
+  //        std::cout << "num_inc_faces = " << num_inc_faces << " and num_out_faces = " << num_out_faces << std::endl;
+          
           // Loop over angles in the angleset
           for (int m = 0; m < angle_per_angleset; m++)
           {
@@ -258,7 +261,10 @@ void Problem::Sweep(std::ofstream &output)
             oy = omega[m][1];
             oz = omega[m][2];
             
-            
+            for (int a = 0; a < 4; a++)
+              for (int b = 0; b < 4; b++)
+                A_tilde[a][b] = 0;
+                
             // Add in the gradient matrix to the A matrix
             for (int a = 0; a < 4; a++)
             {
@@ -270,35 +276,37 @@ void Problem::Sweep(std::ofstream &output)
                   A_tilde[a][b] += omega[m][c] * L[a][b][c];
                   for (int f = 0; f < num_inc_faces; f++)
                   {
-                    A_tilde[a][b] += -omega[m][c] * N[ incoming[f][0] ][a][b][c];
+                    A_tilde[a][b] += -omega[m][c] * N[ incoming[f] ][a][b][c];
                   }
                 }
               }
               RHS[a] = M[a][a] * source[a];
             }
-
             
             // Loop over groups in this groupset
             for (int g = 0; g < group_per_groupset; g++)
             {
+              for(int a = 0; a < 4; a++)
+                bg[a] = RHS[a];
+                
               start_group = MPI_Wtime();
 
               // Initialize b and add incoming fluxes for the RHS
               for (int f = 0; f < num_inc_faces; f++)
               {
-                bloc[g] = (*it).Get_buffer_loc(cell_ijk[0]+cells_x*cell_ijk[1], cell_ijk[2], g, m, incoming[f][0], interior_data);
+                it_index = (*it).Get_buffer_loc(cell_ijk[0]+cells_x*cell_ijk[1], cell_ijk[2], g, m, incoming[f], interior_data);
                 for (int a = 0; a < 4; a++)
                 {
                   for (int b = 0; b < 4; b++)
                   {
                     for (int c = 0; c < 3; c++)
                     {
-                      bg[a] += (-omega[m][c] * N[incoming[f][0]][a][b][c])*bloc[g][b];
+                        bg[a] += (-omega[m][c] * N[incoming[f]][a][b][c])*interior_data[it_index + b];
                     }
                   }
                 } 
               }
-          
+             
               // Add the contribution to the A matrix and the RHS vector
               for (int a = 0; a < 4; a++)
               {
@@ -312,9 +320,11 @@ void Problem::Sweep(std::ofstream &output)
               GE_no_pivoting(A, bg, 4);
 
               // Now we accumulate the fluxes into phi;
-              int index = (*it).groupset_id*group_per_groupset*4+4*g;
+              index = (*it).groupset_id*group_per_groupset*4+4*g;
               for (int p = 0; p < 4; p++)
                 my_cell.phi[index + p] += bg[p] * wt[m];
+                
+                
 
               // Now we need to translate the cell average to the average on each 
               // face before we push to the down stream neighbers
@@ -322,12 +332,14 @@ void Problem::Sweep(std::ofstream &output)
               cell_average = bg[0];
               for (int f = 0; f < num_out_faces; f++)
               {
-                bg[0] = cell_average + my_cell.facecenters[outgoing[f][0]][0]*bg[1] + my_cell.facecenters[outgoing[f][0]][1]*bg[2] + my_cell.facecenters[outgoing[f][0]][2]*bg[3];
-                bloc[g] = (*it).Get_buffer_loc(cell_ijk[0]+cells_x*cell_ijk[1], cell_ijk[2], g, m, outgoing[f][0], interior_data);
+                bg[0] = cell_average + my_cell.facecenters[outgoing[f][1]][0]*bg[1] + my_cell.facecenters[outgoing[f][1]][1]*bg[2] + my_cell.facecenters[outgoing[f][1]][2]*bg[3];
+                my_cell.GetCellijk(outgoing[f][0], cells_x, cells_y, cells_z, neighbor_ijk);
+                it_index = (*it).Get_buffer_loc(neighbor_ijk[0]+cells_x*neighbor_ijk[1], neighbor_ijk[2], g, m, outgoing[f][2], interior_data);
+                
                 for(int i = 0;i < 4;++i)
-                  bloc[g][i] = bg[i];
+                  interior_data[it_index + i] = bg[i];
+
               }
-              
               duration_group += MPI_Wtime() - start_group;
             } //groups
             duration_angle += MPI_Wtime() - start_angle;
@@ -336,10 +348,8 @@ void Problem::Sweep(std::ofstream &output)
         } // cells in x
       } // cells in y
     } // cells in z
-    
     // Now we need to set the plane_data structure with our interior data 
     (*it).SetPlaneData(interior_data);
-    
     duration_task += (MPI_Wtime() - start_task);
     start_send = MPI_Wtime();
     comm.markComplete((*it).task_id);
@@ -481,6 +491,7 @@ void Problem::ComputePhi()
         size += 1;
       }
     }
+  //  std::cout << " " << std::endl;
   }
   phi_average[0] /= size;
   phi_average[1] /= size;

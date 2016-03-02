@@ -56,33 +56,26 @@ public:
 	void AllocateBuffers(void);
 
 	// Returns an iterator to the buffer location in interior data
-        inline std::vector<double>::iterator Get_buffer_loc(int cell_xy, int cell_z, int group, int angle, int face, std::vector<double>interior_data)
-        {
-         return interior_data.begin() + (cell_z*cells_xy*group_per_groupset*angle_per_angleset * 4*6 + 
-            cell_xy*group_per_groupset*angle_per_angleset * 4*6 + group*angle_per_angleset * 4*6 + angle * 4*6 + face);
-            
- //            if (face == 0 || face == 1)
- //   {
- //     return interior_data[0].begin() + (cell_xy*cells_z*group_per_groupset*angle_per_angleset * 4 + 
- //       cell_z*group_per_groupset*angle_per_angleset * 4 + group*angle_per_angleset * 4 + angle * 4);
- //   }
- //   else if (face == 2 || face == 3)
- //   {
- //     return interior_data[1].begin() + (cell_xy*cells_z*group_per_groupset*angle_per_angleset * 4 +
- //       cell_z*group_per_groupset*angle_per_angleset * 4 + group*angle_per_angleset * 4 + angle * 4);
- //   }
- //   else
- //   {
- //     return interior_data[2].begin() + (cell_xy*group_per_groupset*angle_per_angleset * 4 + 
- //       cell_xy*group_per_groupset*angle_per_angleset * 4 + group*angle_per_angleset * 4 + angle * 4);
- //   }   
-        }
+//  inline std::vector<double>::iterator Get_buffer_loc(int cell_xy, int cell_z, int group, int angle, int face, std::vector<double>interior_data)
+  inline int Get_buffer_loc(int cell_xy, int cell_z, int group, int angle, int face, std::vector<double>interior_data)
+  {
+    int cell_y = (int)(cell_xy / cells_x);
+    int cell_x = cell_xy - cells_x * cell_y;
+    int index = (cell_z*cells_xy*group_per_groupset*angle_per_angleset * 4*6 + 
+      cell_y*cells_x*group_per_groupset*angle_per_angleset * 4*6 + cell_x*group_per_groupset*angle_per_angleset * 4*6 + face*group_per_groupset*angle_per_angleset * 4 + group*angle_per_angleset * 4 + angle * 4);
+
+    return index;
+    
+    
+ //   return interior_data.begin() + (cell_z*cells_xy*group_per_groupset*angle_per_angleset * 4*6 + 
+ //     cell_xy*group_per_groupset*angle_per_angleset * 4*6 + face*group_per_groupset*angle_per_angleset * 4 + group*angle_per_angleset * 4 + angle * 4);  
+  }
   
 	// Gets the plane data and puts it in interior data
-        void GetInteriorData(std::vector<double>& interior_data);
+  void GetInteriorData(std::vector<double>& interior_data);
         
-        // Puts the interior data into plane data
-        void SetPlaneData(std::vector<double> interior_data);
+  // Puts the interior data into plane data
+  void SetPlaneData(std::vector<double>& interior_data);
         
 	void Get_buffer_from_bc(int);
 

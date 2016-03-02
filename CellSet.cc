@@ -29,12 +29,12 @@ void CellSet::BuildCellSet(int CS_ID, Problem* problem)
   num_angleset = problem->quad.num_angleset;
 
   cells_per_cellset = cells_x*cells_y*cells_z;
-std::cout << "File: " << __FILE__ << " and line: " << __LINE__ << std::endl;
+  
   Cells.resize(cells_per_cellset);
   for(int i=0; i<cells_per_cellset; i++){
     Cells[i].BuildCell(i, CS_ID, problem);
   }
-std::cout << "File: " << __FILE__ << " and line: " << __LINE__ << std::endl;
+
   // Set global boundary flags
   globalboundary.resize(6);
   BoundaryFlux.resize(6);
