@@ -35,7 +35,7 @@ void Cell::BuildCell(int Local_ID, int CS_ID, Problem* problem)
   GetFaceCenters();
 
   // Set CellSet Boundary Flags
-  localboundary.resize(3);
+  localboundary.resize(6,0);
   SetLocalBoundary();
 
   // Figure out global Cell_ID of 6 neighbors
@@ -56,7 +56,24 @@ void Cell::BuildCell(int Local_ID, int CS_ID, Problem* problem)
 
 void Cell::SetLocalBoundary()
 {
-  // boundary[0] = -1 on the -x boundary
+  // Localboundary is filled with zeros. If we're on a boundary, we replace the zero with a 1
+  
+  // -Y boundary
+  if(localijk[1] == 0)
+    localboundary[0] = 1;
+  if(localijk[0] == cells_x -1)
+    localboundary[1] = 1;
+  if(localijk[1] == cells_y - 1)
+    localboundary[2] = 1;
+  if(localijk[0] == 0)
+    localboundary[3] = 1;
+  if(localijk[2] == 0)
+    localboundary[4] = 1;
+  if(localijk[2] == cells_z - 1)
+    localboundary[5] = 1;
+    
+  
+ /* // boundary[0] = -1 on the -x boundary
   // boundary[0] =  1 on the +x boundary
   // boundary[0] =  0 on the interior
   if(localijk[0] == 0)
@@ -84,7 +101,7 @@ void Cell::SetLocalBoundary()
   else if(localijk[2] == cells_z -1)
     localboundary[2] = 1;
   else
-    localboundary[2] = 0;
+    localboundary[2] = 0; */
 }
 
 void Cell::GetCellijk(int Cell_ID, int Dx, int Dy, int Dz, std::vector<int>& ijk)
@@ -150,86 +167,93 @@ void Cell::GetNeighbors(int CS_ID)
 
 
     // -Y neighbor
-  if(localboundary[1] == -1)
+  if(localboundary[0] == 1)
   {
-    neighbors[0].id = CellID - cells_per_cellset*num_cellsets[0] + (cells_y - localijk[1] - 1)*cells_x;
+   // neighbors[0].id = CellID - cells_per_cellset*num_cellsets[0] + (cells_y - localijk[1] - 1)*cells_x;
+    neighbors[0].id = LocalCellID;
     neighbors[0].cs = 1;
   }
   // Interior
   else
   {
-    neighbors[0].id = CellID - cells_x;
+    neighbors[0].id = LocalCellID - cells_x;
     neighbors[0].cs = 0;
   }
   
   // +X neighbor
-  if(localboundary[0] == 1)
+  if(localboundary[1] == 1)
   {
-    neighbors[1].id = CellID + cells_per_cellset - (cells_x - 1);
+   // neighbors[1].id = CellID + cells_per_cellset - (cells_x - 1);
+    neighbors[1].id = LocalCellID;
     neighbors[1].cs = 1;
   }
   // Interior
   else
   {
-    neighbors[1].id = CellID + 1;
+    neighbors[1].id = LocalCellID + 1;
     neighbors[1].cs = 0;
   }
 
   // +Y neighbor
-  if(localboundary[1] == 1)
+  if(localboundary[2] == 1)
   {
-    neighbors[2].id = CellID + cells_per_cellset*num_cellsets[0] - localijk[1]*cells_x;
+   // neighbors[2].id = CellID + cells_per_cellset*num_cellsets[0] - localijk[1]*cells_x;
+    neighbors[2].id = LocalCellID;
     neighbors[2].cs = 1;
   }
   // Interior
   else
   {
-    neighbors[2].id = CellID + cells_x;
+    neighbors[2].id = LocalCellID + cells_x;
     neighbors[2].cs = 0;
   }
 
   // -X neighbor
-  if(localboundary[0] == -1)
+  if(localboundary[3] == 1)
   {
-    neighbors[3].id = CellID - cells_per_cellset + (cells_x - 1);
+   // neighbors[3].id = CellID - cells_per_cellset + (cells_x - 1);
+    neighbors[3].id = LocalCellID;
     neighbors[3].cs = 1;
   }
   // Interior
   else
   {
-    neighbors[3].id = CellID - 1;
+    neighbors[3].id = LocalCellID - 1;
     neighbors[3].cs = 0;
   }
 
   // -Z neighbor
-  if(localboundary[2] == -1)
+  if(localboundary[4] == 1)
   {
-    neighbors[4].id = CellID - cells_per_cellset*num_cellsets[0]*num_cellsets[1] + (cells_z - localijk[2])*cells_x*cells_y;
+   // neighbors[4].id = CellID - cells_per_cellset*num_cellsets[0]*num_cellsets[1] + (cells_z - localijk[2])*cells_x*cells_y;
+    neighbors[4].id = LocalCellID;
     neighbors[4].cs = 1;
   }
   // Interior
   else
   {
-    neighbors[4].id = CellID - cells_x*cells_y;
+    neighbors[4].id = LocalCellID - cells_x*cells_y;
     neighbors[4].cs = 0;
   }
   
   // +Z neighbor
-  if(localboundary[2] == 1)
+  if(localboundary[5] == 1)
   {
-    neighbors[5].id = CellID + cells_per_cellset*num_cellsets[0]*num_cellsets[1] - localijk[2]*cells_x*cells_y;
+   // neighbors[5].id = CellID + cells_per_cellset*num_cellsets[0]*num_cellsets[1] - localijk[2]*cells_x*cells_y;
+    neighbors[5].id = LocalCellID;
     neighbors[5].cs = 1;
   }
   // Interior
   else
   {
-    neighbors[5].id = CellID + cells_x*cells_y;
+    neighbors[5].id = LocalCellID + cells_x*cells_y;
     neighbors[5].cs = 0;
   }
 }
 
 void Cell::GetCellInOut(std::vector<double> omega, std::vector<int>& incoming, std::vector<std::vector<int> >& outgoing)
 {
+
     int r(0), s(0);
     for(int f = 0; f < num_faces; f++)
     {
@@ -251,13 +275,14 @@ void Cell::GetCellInOut(std::vector<double> omega, std::vector<int>& incoming, s
         }
         else
         {
-          outgoing[s][0] = CellID;
+          outgoing[s][0] = LocalCellID;
           outgoing[s][1] = f;
           outgoing[s][2] = f;
           s += 1; 
         }        
       }
     }
+
 }
 
 void Cell::GetFaceNormals()

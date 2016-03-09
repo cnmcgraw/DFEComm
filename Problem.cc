@@ -161,7 +161,7 @@ void Problem::Sweep(std::ofstream &output)
   std::vector<Task>::iterator it_end = All_Tasks.end();
   
   // Necessary temporary data structures for the sweep
-  std::vector<int> cell_ijk(2, 0), neighbor_ijk(2,0);
+  std::vector<int> cell_ijk(3, 0), neighbor_ijk(3,0);
   std::vector<double> temp_solve(4, 0);
   Neighbor neighbor;
   int task_it(0), recv(0), target(0);
@@ -295,6 +295,7 @@ void Problem::Sweep(std::ofstream &output)
               for (int f = 0; f < num_inc_faces; f++)
               {
                 it_index = (*it).Get_buffer_loc(cell_ijk[0]+cells_x*cell_ijk[1], cell_ijk[2], g, m, incoming[f], interior_data);
+
                 for (int a = 0; a < 4; a++)
                 {
                   for (int b = 0; b < 4; b++)
