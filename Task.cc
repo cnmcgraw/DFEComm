@@ -41,7 +41,10 @@ void Task::BuildTask(int SML_ID, Problem* problem, Subdomain* subdomain, int cs,
       outgoing[s][0] = f;
       outgoing[s][1] = neighbor.SML;
       int neighbor_cs_loc = subdomain->ComputeCellSetIndex(neighbor.id, neighbor.SML);
-      outgoing[s][2] = ComputeTaskID(neighbor_cs_loc, as, gs);
+      if(neighbor.SML < 0)
+        outgoing[s][2] = ComputeTaskID(cs, as, gs);
+      else
+        outgoing[s][2] = ComputeTaskID(neighbor_cs_loc, as, gs);
       s += 1;
     }
   } 

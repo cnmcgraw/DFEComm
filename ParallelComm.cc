@@ -72,28 +72,37 @@ void ParallelComm::postRecvs(int task_id, Task &task){
   int mpi_rank;
   MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
 
-  // go thru each dimensions incoming neighbors, and add the dependencies
+  // go thru each incoming neighbor, and add the dependencies
   int num_depends = 0;
-  for(int dim = 0;dim < 3;++ dim){
+  int dim = 0;
+  
+  for(int i = 0;i < 3;++ i){
+    // Need to figure out which dimension we're in
+    if(task.incoming[i][0] == 1 || task.incoming[i][0] == 3 )
+      dim = 0;
+    else if(task.incoming[i][0] == 0 || task.incoming[i][0] == 2 )
+      dim = 1;
+    else
+      dim = 2;
     // If it's a boundary condition, skip it
-    if(task.incoming[dim][1] < 0){
+    if(task.incoming[i][1] < 0){
       task.Get_buffer_from_bc(dim);
       continue;
     }
     // If it's an on-rank communication (from another Task)
-    if(task.incoming[dim][1] == mpi_rank){
+    if(task.incoming[i][1] == mpi_rank){
       // skip it, but track the dependency
       num_depends ++;
       continue;
     }
     // Change the flag for already completed to false
-    already_completed[3*task_id + dim] = false;
+    already_completed[3*task_id + i] = false;
 
     // compute the tag id of THIS task (tags are always based on destination)
      int tag = computeTag(mpi_rank, task_id);
     // Post the recieve
-    MPI_Irecv(&task.plane_data[dim][0], task.plane_data[dim].size(), MPI_DOUBLE, task.incoming[dim][1],
-      tag, MPI_COMM_WORLD, &recv_requests[3* task_id + dim]);
+    MPI_Irecv(&task.plane_data[dim][0], task.plane_data[dim].size(), MPI_DOUBLE, task.incoming[i][1],
+      tag, MPI_COMM_WORLD, &recv_requests[3* task_id + i]);
 
 
     // increment number of dependencies
@@ -108,20 +117,29 @@ void ParallelComm::postSends(Task *task, double *src_buffers[3]){
   // post sends for outgoing dependencies
   int mpi_rank;
   MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
-  for(int dim = 0;dim < 3;++ dim){
+  int dim = 0;
+  for(int i = 0;i < 3;++ i){
+    // Need to figure out which dimension we're in
+    if(task->outgoing[i][0] == 1 || task->outgoing[i][0] == 3 )
+      dim = 0;
+    else if(task->outgoing[i][0] == 0 || task->outgoing[i][0] == 2 )
+      dim = 1;
+    else
+      dim = 2;
+  
     // If it's a boundary condition, fill plane data with BC's
-    if(task->outgoing[dim][1] < 0){
+    if(task->outgoing[i][1] < 0){
  //     task->Get_buffer_from_bc(dim);
       continue;
     }
 
     // If it's an on-rank communication (to another task)
-    if(task->outgoing[dim][1] == mpi_rank){
+    if(task->outgoing[i][1] == mpi_rank){
 
-      queue_depends[task->outgoing[dim][2]] --;
+      queue_depends[task->outgoing[i][2]] --;
 
       // copy the boundary condition data into the outgoings plane data
-      int task_index = task->outgoing[dim][2];
+      int task_index = task->outgoing[i][2];
       Task& task_outgoing = *(all_tasks[task_index]);
       task_outgoing.plane_data[dim].assign(task->plane_data[dim].begin(), task->plane_data[dim].begin() + task->plane_data[dim].size());
       continue;
@@ -129,15 +147,15 @@ void ParallelComm::postSends(Task *task, double *src_buffers[3]){
 
     // At this point, we know that we have to send an MPI message
     // compute the tag id of TARGET task (tags are always based on destination)
-    int tag = computeTag(task->outgoing[dim][1], task->outgoing[dim][2]);
+    int tag = computeTag(task->outgoing[i][1], task->outgoing[i][2]);
 
     // Post the send
-    MPI_Irsend(src_buffers[dim], task->plane_data[dim].size(), MPI_DOUBLE, task->outgoing[dim][1],
-      tag, MPI_COMM_WORLD, &send_requests[task->task_id + dim]);
+    MPI_Irsend(src_buffers[i], task->plane_data[dim].size(), MPI_DOUBLE, task->outgoing[i][1],
+      tag, MPI_COMM_WORLD, &send_requests[task->task_id + i]);
       
     int complete_flag = 0;
     MPI_Status status;
-    MPI_Test(&send_requests[task->task_id + dim], &complete_flag, &status);
+    MPI_Test(&send_requests[task->task_id + i], &complete_flag, &status);
   }
 }
 

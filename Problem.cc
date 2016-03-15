@@ -117,7 +117,6 @@ void Problem::BuildProblem(Problem_Input* input)
 
   // Now we order the All_Tasks vector by depth, then angleset, then groupset
   std::sort(All_Tasks.begin(), All_Tasks.end(), by_depth());
-
   
     // Give pointers to the tasks to the comm (so we can figure out neighbors)
   for(int i = 0; i < num_tasks; i++){
@@ -248,9 +247,7 @@ void Problem::Sweep(std::ofstream &output)
           
           num_inc_faces = incoming.size();
           num_out_faces = outgoing.size();
-          
-  //        std::cout << "num_inc_faces = " << num_inc_faces << " and num_out_faces = " << num_out_faces << std::endl;
-          
+
           // Loop over angles in the angleset
           for (int m = 0; m < angle_per_angleset; m++)
           {

@@ -153,27 +153,27 @@ void CellSet::SetGlobalBoundary(int CS_ID, Problem* problem)
   else
     globalboundary[2] = 0;
 
-  // boundary[3] = 1 on the -y boundary
+  // boundary[3] = 1 on the -x boundary
   // boundary[3] = 0 on the interior
-  if (globalijk[1] == 0)
+  if (globalijk[0] == 0)
   {
     globalboundary[3] = 1;
   }
   else
     globalboundary[3] = 0;
 
-  // boundary[4] = 1 on the z boundary
+  // boundary[4] = 1 on the -z boundary
   // boundary[4] = 0 on the interior
-  if (globalijk[2] == problem->num_cellsets[2] - 1)
+  if (globalijk[2] == 0)
   {
     globalboundary[4] = 1;
   }
   else
     globalboundary[4] = 0;
 
-  // boundary[5] = 1 on the -z boundary
+  // boundary[5] = 1 on the z boundary
   // boundary[5] = 0 on the interior
-  if (globalijk[2] == 0)
+  if (globalijk[2] == problem->num_cellsets[2] - 1)
   {
     globalboundary[5] = 1;
   }
@@ -189,25 +189,20 @@ void CellSet::GetNeighbors(int CS_ID)
   // Since we're only allowing block grids, the faces
   // are orthogonal along the xyz axes
   for (int i = 0; i < neighbors.size(); i++)
-  {
-    neighbors[i].direction.resize(3);
-    neighbors[i].direction[0] = 0;
-    neighbors[i].direction[1] = 0;
-    neighbors[i].direction[2] = 0;
-  }
+    neighbors[i].direction.resize(3.0);
 
 
   neighbors[0].direction[1] = -1;
   neighbors[1].direction[0] = 1;
   neighbors[2].direction[1] = 1;
   neighbors[3].direction[0] = -1;
-  neighbors[4].direction[2] = 1;
-  neighbors[5].direction[2] = -1;
+  neighbors[4].direction[2] = -1;
+  neighbors[5].direction[2] = 1;
 
   // If ID is <0, the CellSet is on a global boundary
   // id = -1 is on -y boundary, id = -2 is on the +x boundary
   // id = -3 is on +y boundary, id = -4 is on the -x boundary
-  // id = -5 is on +z boundary, id = -6 is on the -z boundary
+  // id = -5 is on -z boundary, id = -6 is on the +z boundary
 
   // -Y neighbor
   if (globalboundary[0] == 1)
@@ -237,19 +232,19 @@ void CellSet::GetNeighbors(int CS_ID)
   else
     neighbors[3].id = CS_ID - 1;
 
-  // +Z neighbor
+  // -Z neighbor
   if (globalboundary[4] == 1)
     neighbors[4].id = -5;
   // Interior
   else
-    neighbors[4].id = CS_ID + num_cellsets[0] * num_cellsets[1];
+    neighbors[4].id = CS_ID - num_cellsets[0] * num_cellsets[1];
 
-  // -Z neighbor
+  // +Z neighbor
   if (globalboundary[5] == 1)
     neighbors[5].id = -6;
   // Interior
   else
-    neighbors[5].id = CS_ID - num_cellsets[0] * num_cellsets[1];
+    neighbors[5].id = CS_ID + num_cellsets[0] * num_cellsets[1];
 
 
 }

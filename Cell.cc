@@ -142,19 +142,15 @@ void Cell::GetNeighbors(int CS_ID)
   // Since we're only allowing block grids, the faces
   // are orthogonal along the xyz axes
   for (int i = 0; i < neighbors.size(); i++)
-  {
-    neighbors[i].direction.resize(3);
-    neighbors[i].direction[0] = 0;
-    neighbors[i].direction[1] = 0;
-    neighbors[i].direction[2] = 0;
-  }
+    neighbors[i].direction.resize(3,0);
+
     
   neighbors[0].direction[1] = -1; //-y
   neighbors[1].direction[0] = 1; //+x
   neighbors[2].direction[1] = 1; //+y
   neighbors[3].direction[0] = -1; //-x
-  neighbors[4].direction[2] = -1; //+z
-  neighbors[5].direction[2] = 1; //-z
+  neighbors[4].direction[2] = -1; //-z
+  neighbors[5].direction[2] = 1; //+z
   
   // This is the face id for the neighboring face.
   // We can compute this for spiderweb grids, it's just more complicated
@@ -299,8 +295,8 @@ void Cell::GetFaceNormals()
   normals[1][0] = 1.;
   normals[2][1] = 1.;
   normals[3][0] = -1.;
-  normals[4][1] = -1.;
-  normals[5][1] = 1.;
+  normals[4][2] = -1.;
+  normals[5][2] = 1.;
 }
 
 void Cell::GetFaceCenters()
