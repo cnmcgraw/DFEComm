@@ -40,11 +40,13 @@ void Task::BuildTask(int SML_ID, Problem* problem, Subdomain* subdomain, int cs,
     {
       outgoing[s][0] = f;
       outgoing[s][1] = neighbor.SML;
-      int neighbor_cs_loc = subdomain->ComputeCellSetIndex(neighbor.id, neighbor.SML);
+      
       if(neighbor.SML < 0)
         outgoing[s][2] = ComputeTaskID(cs, as, gs);
-      else
+      else{
+        int neighbor_cs_loc = subdomain->ComputeCellSetIndex(neighbor.id, neighbor.SML);
         outgoing[s][2] = ComputeTaskID(neighbor_cs_loc, as, gs);
+      }
       s += 1;
     }
   } 
@@ -214,6 +216,27 @@ void Task::GetInteriorData(std::vector<double >& interior_data)
             interior_data[index+gm] = plane_data[2][i];
       }       
     }
+    
+  /*  std::cout << "Plane_data[0] = " << std::endl;
+    // cells_y*cells_z*group_per_groupset*angle_per_angleset * 4
+    for(int j = cells_y -1; j >= 0; j --)
+      std::cout << plane_data[0][j*4] << std::endl;
+    std::cout << " " << std::endl;
+    std::cout << "Plane_data[1] = " << std::endl;
+    for(int i = 0; i < cells_x; i ++)
+      std::cout << plane_data[1][i*4] << " " ;
+    std::cout << " " << std::endl;
+      
+    std::cout << "Plane_data[2] = " << std::endl;
+    // cells_xy*group_per_groupset*angle_per_angleset * 4);
+    for(int j = cells_y -1; j >= 0; j --){
+      for(int i = 0; i < cells_x; i ++)
+        std::cout << plane_data[2][(j*cells_x + i)*4] << " " ;
+      std::cout << " " << std::endl;
+    }
+      
+    std::cout << " " << std::endl;
+   */ 
 
 }
 

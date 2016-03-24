@@ -57,13 +57,13 @@ public:
 
 	// Returns an iterator to the buffer location in interior data
 //  inline std::vector<double>::iterator Get_buffer_loc(int cell_xy, int cell_z, int group, int angle, int face, std::vector<double>interior_data)
-  inline int Get_buffer_loc(int cell_xy, int cell_z, int group, int angle, int face, std::vector<double>interior_data)
+  inline int Get_buffer_loc(int cell_xy, int cell_z, int group, int angle, int face)
   {
     int cell_y = (int)(cell_xy / cells_x);
     int cell_x = cell_xy - cells_x * cell_y;
     int index = (cell_z*cells_xy*group_per_groupset*angle_per_angleset * 4*6 + 
       cell_y*cells_x*group_per_groupset*angle_per_angleset * 4*6 + cell_x*group_per_groupset*angle_per_angleset * 4*6 + face*group_per_groupset*angle_per_angleset * 4 + group*angle_per_angleset * 4 + angle * 4);
-
+ 
     return index;
     
     

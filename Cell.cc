@@ -379,41 +379,42 @@ void Cell::ComputeDFEMMatrices()
   // N is the surface matrix. The first dimension is the face
   // Each face as a 4x4 matrix of (x,y,z) components
   N.resize(6, vector<vector<vector<double > > >(4, vector< vector<double> >(4, vector<double>(3) ) ) );
-  // Face 0: e_n = (1, 0, 0)
-  N[0][0][0][0] = delta_y*delta_z;
-  N[0][0][1][0] = delta_y*delta_z;
-  N[0][1][0][0] = delta_y*delta_z;
-  N[0][1][1][0] = delta_y*delta_z;
-  N[0][2][2][0] = delta_y*delta_z/12.;
-  N[0][3][3][0] = delta_y*delta_z/12.;
+  // Face 1: e_n = (1, 0, 0)
+  N[1][0][0][0] = delta_y*delta_z;
+  N[1][0][1][0] = delta_y*delta_z;
+  N[1][1][0][0] = delta_y*delta_z;
+  N[1][1][1][0] = delta_y*delta_z;
+  N[1][2][2][0] = delta_y*delta_z/12.;
+  N[1][3][3][0] = delta_y*delta_z/12.;
 
-  // Face 1: e_n = (-1, 0, 0)
-  for(int i=0; i< N[1].size(); i++)
-  {
-    for(int j=0; j<N[1].size();j++)
-    {
-      N[1][i][j][0] = N[0][i][j][0];
-      if(i == j)
-        N[1][i][j][0] *= -1.;
-    }
-  }
 
-  // Face 2: e_n = (0, 1, 0)
-  N[2][0][0][1] = delta_x*delta_z;
-  N[2][0][2][1] = delta_x*delta_z;
-  N[2][1][1][1] = delta_x*delta_z/12.;
-  N[2][2][0][1] = delta_x*delta_z;
-  N[2][2][2][1] = delta_x*delta_z;
-  N[2][3][3][1] = delta_x*delta_z/12.;
+  // Face 0: e_n = (0, -1, 0)
+  N[0][0][0][1] = -delta_x*delta_z;
+  N[0][0][2][1] = delta_x*delta_z;
+  N[0][1][1][1] = -delta_x*delta_z/12.;
+  N[0][2][0][1] = delta_x*delta_z;
+  N[0][2][2][1] = -delta_x*delta_z;
+  N[0][3][3][1] = delta_x*delta_z/12.;
   
-  // Face 3: e_n = (0, -1, 0)
+  // Face 3: e_n = (-1, 0, 0)
   for(int i=0; i< N[3].size(); i++)
   {
     for(int j=0; j<N[3].size();j++)
     {
-      N[3][i][j][1] = N[2][i][j][1];
+      N[3][i][j][0] = N[1][i][j][0];
       if(i == j)
-        N[3][i][j][1] *= -1.;
+        N[3][i][j][0] *= -1.;
+    }
+  }
+  
+  // Face 2: e_n = (0, -1, 0)
+  for(int i=0; i< N[2].size(); i++)
+  {
+    for(int j=0; j<N[2].size();j++)
+    {
+      N[2][i][j][1] = N[0][i][j][1];
+      if(i == j)
+        N[2][i][j][1] *= -1.;
     }
   }
 
