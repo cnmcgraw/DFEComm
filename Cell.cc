@@ -57,8 +57,6 @@ void Cell::BuildCell(int Local_ID, int CS_ID, Problem* problem)
 void Cell::SetLocalBoundary()
 {
   // Localboundary is filled with zeros. If we're on a boundary, we replace the zero with a 1
-  
-  // -Y boundary
   if(localijk[1] == 0)
     localboundary[0] = 1;
   if(localijk[0] == cells_x -1)
@@ -71,37 +69,6 @@ void Cell::SetLocalBoundary()
     localboundary[4] = 1;
   if(localijk[2] == cells_z - 1)
     localboundary[5] = 1;
-    
-  
- /* // boundary[0] = -1 on the -x boundary
-  // boundary[0] =  1 on the +x boundary
-  // boundary[0] =  0 on the interior
-  if(localijk[0] == 0)
-    localboundary[0] = -1;
-  else if(localijk[0] == cells_x -1)
-    localboundary[0] = 1;
-  else
-    localboundary[0] = 0;
-
-  // boundary[1] = -1 on the -y boundary
-  // boundary[1] =  1 on the +y boundary
-  // boundary[1] =  0 on the interior
-  if(localijk[1] == 0)
-    localboundary[1] = -1;
-  else if(localijk[1] == cells_y -1)
-    localboundary[1] = 1;
-  else
-    localboundary[1] = 0;
-
-  // boundary[2] = -1 on the -z boundary
-  // boundary[2] =  1 on the +z boundary
-  // boundary[2] =  0 on the interior
-  if(localijk[2] == 0)
-    localboundary[2] = -1;
-  else if(localijk[2] == cells_z -1)
-    localboundary[2] = 1;
-  else
-    localboundary[2] = 0; */
 }
 
 void Cell::GetCellijk(int Cell_ID, int Dx, int Dy, int Dz, std::vector<int>& ijk)

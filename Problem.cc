@@ -257,25 +257,22 @@ void Problem::Sweep(std::ofstream &output)
           for (int m = 0; m < angle_per_angleset; m++)
           {
             start_angle = MPI_Wtime();
-            
-            // Get the direction of the angle
-            ox = omega[m][0];
-            oy = omega[m][1];
-            oz = omega[m][2];
-            
-            for (int a = 0; a < 4; a++)
-              for (int b = 0; b < 4; b++)
-                A_tilde[a][b] = 0;
+
+          //  for (int a = 0; a < 4; a++)
+           //   for(int b = 0; b < 4; b++)
+          //      A_tilde[a][b] = 0;
+           //   std::fill(A_tilde[a].begin(), A_tilde[a].end(), 0);
                 
             // Add in the gradient matrix to the A matrix
             for (int a = 0; a < 4; a++)
             {
               for (int b = 0; b < 4; b++)
               { 
+                A_tilde[a][b] = omega[m][0] * L[a][b][0] + omega[m][1] * L[a][b][1] + omega[m][2] * L[a][b][2];
                 for (int c = 0; c < 3; c++)
                 {
                   // Add the surface matrix contribution for incoming cell faces
-                  A_tilde[a][b] += omega[m][c] * L[a][b][c];
+                  //A_tilde[a][b] += omega[m][c] * L[a][b][c];
                   for (int f = 0; f < num_inc_faces; f++)
                   {
                     A_tilde[a][b] += -omega[m][c] * N[ incoming[f] ][a][b][c];
@@ -288,10 +285,10 @@ void Problem::Sweep(std::ofstream &output)
             // Loop over groups in this groupset
             for (int g = 0; g < group_per_groupset; g++)
             {
+              start_group = MPI_Wtime();
+              
               for(int a = 0; a < 4; a++)
                 bg[a] = RHS[a];
-                
-              start_group = MPI_Wtime();
 
               // Initialize b and add incoming fluxes for the RHS
               for (int f = 0; f < num_inc_faces; f++)
