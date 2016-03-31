@@ -5,6 +5,8 @@
 #include <vector>
 #include <iostream>
 #include "Cell.h"
+#include "RectangularCell.h"
+#include "SpiderCell.h"
 #include "Problem.h"
 
 //class Problem;
@@ -17,7 +19,7 @@ public:
 
 public:
 	// Vector of cells this CellSet has
-	std::vector< Cell > Cells;
+	std::vector< Cell* > Cells;
 
 	int cells_per_cellset;
 	int cells_x, cells_y, cells_xy, cells_z;

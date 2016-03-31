@@ -21,6 +21,8 @@ public:
 	int num_pin_x, num_pin_y;
 	int z_planes;
 	int refinement;
+	std::vector<int> sp_azim;
+	bool spider;
 	int sp_disc;
 	int bcs;
   int max_faces;

@@ -58,6 +58,11 @@ void Problem::BuildProblem(Problem_Input* input)
   num_pin_x = input->num_pin_x;
   num_pin_y = input->num_pin_y;
   refinement = input->refinement;
+  spider = input->spider;
+  if(spider){
+    sp_azim.resize(refinement);
+    sp_azim = input->sp_azim;
+  }
   z_planes = input->z_planes;
   sp_disc = input->sp_disc;
   bcs = input->bcs;
@@ -160,13 +165,14 @@ void Problem::Sweep(std::ofstream &output)
   std::vector<Task>::iterator it_end = All_Tasks.end();
   
   // Necessary temporary data structures for the sweep
-  std::vector<int> cell_ijk(3, 0), neighbor_ijk(3,0);
+  std::vector<int> cell_ijk(2, 0), neighbor_ijk(2,0);
   std::vector<double> temp_solve(4, 0);
   Neighbor neighbor;
   int task_it(0), recv(0), target(0);
   
   // Cell Loop
   int cells_x, cells_y, cells_xy, cells_z;
+  int cell_x, cell_y;
   int cell_per_cellset, angle_per_angleset, octant;
   vector<vector<int> > tincoming(3,vector<int>(2,0)), toutgoing(3, std::vector<int>(3,0));
   vector<int> incoming(3,0);
@@ -174,12 +180,14 @@ void Problem::Sweep(std::ofstream &output)
   int num_inc_faces, num_out_faces;
   double cell_average;
   int it_index = 0;
-  int if1, if2, if3, of1, of2, of3;
+  int if1, if2, if3, of;
   
   // Angle Loop
   int cell_id, cijk0, cijk1, cijk2;
   omega.resize(All_Tasks[0].angle_per_angleset, std::vector<double>(3,0.0));
   double ox, oy, oz;
+  double inf;
+ // vector<vector<double> > omN(4,vector<double>(4,0));
   
   // Group Loop
   int index;
@@ -233,15 +241,16 @@ void Problem::Sweep(std::ofstream &output)
         {
           start_cell = MPI_Wtime();
           cell_id = GetCell(i, j, k, cells_x, cells_y, cells_z, octant);
-          Cell &my_cell = subdomain.CellSets[(*it).cellset_id_loc].Cells[cell_id];
+          Cell &my_cell = *(subdomain.CellSets[(*it).cellset_id_loc].Cells[cell_id]);
           my_cell.GetCellijk(cell_id, cells_x, cells_y, cells_z, cell_ijk);
+          cell_y = (int)(cell_ijk[0] / cells_x);
+          cell_x = cell_ijk[0] - cells_x * cell_y;
           sig_tot = my_cell.GetSigmaTot();
-          
 
           // Get the cell's DFEM Matrices for building the A matrix
-          std::vector<std::vector< double > > &M = subdomain.CellSets[(*it).cellset_id_loc].Cells[cell_id].M;
-          std::vector<std::vector<std::vector< vector<double> > > > &N = subdomain.CellSets[(*it).cellset_id_loc].Cells[cell_id].N;
-          std::vector<std::vector< vector<double> > > &L = subdomain.CellSets[(*it).cellset_id_loc].Cells[cell_id].L;
+          std::vector<std::vector< double > > &M = my_cell.M;
+          std::vector<std::vector<std::vector< vector<double> > > > &N = my_cell.N;
+          std::vector<std::vector< vector<double> > > &L = my_cell.L;
          
 
           // Since the source is piece-wise constant, we only need to update the average value
@@ -257,29 +266,31 @@ void Problem::Sweep(std::ofstream &output)
           for (int m = 0; m < angle_per_angleset; m++)
           {
             start_angle = MPI_Wtime();
-
-          //  for (int a = 0; a < 4; a++)
-           //   for(int b = 0; b < 4; b++)
-          //      A_tilde[a][b] = 0;
-           //   std::fill(A_tilde[a].begin(), A_tilde[a].end(), 0);
+            
+            ox = omega[m][0];
+            oy = omega[m][1];
+            oz = omega[m][2];
                 
             // Add in the gradient matrix to the A matrix
             for (int a = 0; a < 4; a++)
             {
               for (int b = 0; b < 4; b++)
               { 
-                A_tilde[a][b] = omega[m][0] * L[a][b][0] + omega[m][1] * L[a][b][1] + omega[m][2] * L[a][b][2];
-                for (int c = 0; c < 3; c++)
-                {
-                  // Add the surface matrix contribution for incoming cell faces
-                  //A_tilde[a][b] += omega[m][c] * L[a][b][c];
-                  for (int f = 0; f < num_inc_faces; f++)
-                  {
-                    A_tilde[a][b] += -omega[m][c] * N[ incoming[f] ][a][b][c];
-                  }
-                }
+                A_tilde[a][b] = ox * L[a][b][0] + oy * L[a][b][1] + oz * L[a][b][2];
               }
               RHS[a] = M[a][a] * source[a];
+            }
+            // Add the surface matrix contribution for incoming cell faces
+            for (int f = 0; f < num_inc_faces; f++)
+            {
+              inf = incoming[f];
+              for (int a = 0; a < 4; a++)
+              {
+                for (int b = 0; b < 4; b++)
+                { 
+                  A_tilde[a][b] += -ox * N[ inf ][a][b][0] - oy * N[ inf ][a][b][1] - oz * N[ inf ][a][b][2];
+                }
+              }
             }
 
             // Loop over groups in this groupset
@@ -293,15 +304,17 @@ void Problem::Sweep(std::ofstream &output)
               // Initialize b and add incoming fluxes for the RHS
               for (int f = 0; f < num_inc_faces; f++)
               {
-                it_index = (*it).Get_buffer_loc(cell_ijk[0]+cells_x*cell_ijk[1], cell_ijk[2], g, m, incoming[f]);
+                inf = incoming[f];
+                
+                it_index = (cell_ijk[1]*cells_xy*group_per_groupset*angle_per_angleset * 4*6 + 
+                  cell_y*cells_x*group_per_groupset*angle_per_angleset * 4*6 + cell_x*group_per_groupset*angle_per_angleset * 4*6 + inf*group_per_groupset*angle_per_angleset * 4 + g*angle_per_angleset * 4 + m* 4);
+                
+               // it_index = (*it).Get_buffer_loc(cell_ijk[0], cell_ijk[1], g, m, incoming[f]);
                 for (int a = 0; a < 4; a++)
                 {
                   for (int b = 0; b < 4; b++)
                   {
-                    for (int c = 0; c < 3; c++)
-                    {
-                        bg[a] += (-omega[m][c] * N[incoming[f]][a][b][c])*interior_data[it_index + b];
-                    }
+                      bg[a] += (-ox * N[ inf ][a][b][0] - oy * N[ inf][a][b][1] - oz * N[ inf ][a][b][2])*interior_data[it_index + b];
                   }
                 } 
               }
@@ -310,9 +323,9 @@ void Problem::Sweep(std::ofstream &output)
               for (int a = 0; a < 4; a++)
               {
                 for (int b = 0; b < 4; b++)
-                  A[a][b] = A_tilde[a][b];  
+                  A[a][b] = A_tilde[a][b] + sig_tot * M[a][b];
                 // Retrieve this cells sigma tot (this is in the group loop to simulate multi-group cross sections)
-                A[a][a] += sig_tot * M[a][a];
+              //  A[a][a] += sig_tot * M[a][a];
               }
 
               // Solve A^-1*RHS with Gaussian Elimination and store it in RHS (4 = number of elements)
@@ -331,9 +344,18 @@ void Problem::Sweep(std::ofstream &output)
               cell_average = bg[0];
               for (int f = 0; f < num_out_faces; f++)
               {
-                bg[0] = cell_average + my_cell.facecenters[outgoing[f][1]][0]*bg[1] + my_cell.facecenters[outgoing[f][1]][1]*bg[2] + my_cell.facecenters[outgoing[f][1]][2]*bg[3];
+                of = outgoing[f][1];
+                bg[0] = cell_average + my_cell.facecenters[ of ][0]*bg[1] + my_cell.facecenters[ of ][1]*bg[2] + my_cell.facecenters[ of ][2]*bg[3];
                 my_cell.GetCellijk(outgoing[f][0], cells_x, cells_y, cells_z, neighbor_ijk);
-                it_index = (*it).Get_buffer_loc(neighbor_ijk[0]+cells_x*neighbor_ijk[1], neighbor_ijk[2], g, m, outgoing[f][2]);
+                
+                
+                cell_y = (int)(neighbor_ijk[0] / cells_x);
+                cell_x = neighbor_ijk[0] - cells_x * cell_y;
+                it_index = (neighbor_ijk[1]*cells_xy*group_per_groupset*angle_per_angleset * 4*6 + 
+                  cell_y*cells_x*group_per_groupset*angle_per_angleset * 4*6 + cell_x*group_per_groupset*angle_per_angleset * 4*6 + outgoing[f][2]*group_per_groupset*angle_per_angleset * 4 + g*angle_per_angleset * 4 + m* 4);
+                
+                
+                //it_index = (*it).Get_buffer_loc(neighbor_ijk[0], neighbor_ijk[1], g, m, outgoing[f][2]);
                 
                 for(int i = 0;i < 4;++i)
                   interior_data[it_index + i] = bg[i];
@@ -454,8 +476,8 @@ void Problem::ZeroPhi()
     for (int j = 0; j < subdomain.CellSets[i].Cells.size(); j++)
     {
       // Loop through groups
-      for (int k = 0; k < subdomain.CellSets[i].Cells[j].phi.size(); k++)
-          subdomain.CellSets[i].Cells[j].phi[k] = 0;
+      for (int k = 0; k < subdomain.CellSets[i].Cells[j]->phi.size(); k++)
+          subdomain.CellSets[i].Cells[j]->phi[k] = 0;
     }
 
   }
@@ -483,10 +505,10 @@ void Problem::ComputePhi()
     { 
       for (int index = 0; index < num_groupsets*group_per_groupset; index++)
       {
-        phi_average[0] += subdomain.CellSets[i].Cells[j].phi[4*index];
-        phi_average[1] += subdomain.CellSets[i].Cells[j].phi[4*index+1];
-        phi_average[2] += subdomain.CellSets[i].Cells[j].phi[4*index+2];
-        phi_average[3] += subdomain.CellSets[i].Cells[j].phi[4*index+3];
+        phi_average[0] += subdomain.CellSets[i].Cells[j]->phi[4*index];
+        phi_average[1] += subdomain.CellSets[i].Cells[j]->phi[4*index+1];
+        phi_average[2] += subdomain.CellSets[i].Cells[j]->phi[4*index+2];
+        phi_average[3] += subdomain.CellSets[i].Cells[j]->phi[4*index+3];
         size += 1;
       }
     }
@@ -505,10 +527,10 @@ void Problem::ComputePhi()
     { 
       for (int index = 0; index < num_groupsets*group_per_groupset; index++)
       {
-        phi_stddev[0] += pow(subdomain.CellSets[i].Cells[j].phi[4*index] - phi_average[0],2);
-        phi_stddev[1] += pow(subdomain.CellSets[i].Cells[j].phi[4*index+1]- phi_average[1],2);
-        phi_stddev[2] += pow(subdomain.CellSets[i].Cells[j].phi[4*index+2]- phi_average[2],2);
-        phi_stddev[3] += pow(subdomain.CellSets[i].Cells[j].phi[4*index+3]- phi_average[3],2);        
+        phi_stddev[0] += pow(subdomain.CellSets[i].Cells[j]->phi[4*index] - phi_average[0],2);
+        phi_stddev[1] += pow(subdomain.CellSets[i].Cells[j]->phi[4*index+1]- phi_average[1],2);
+        phi_stddev[2] += pow(subdomain.CellSets[i].Cells[j]->phi[4*index+2]- phi_average[2],2);
+        phi_stddev[3] += pow(subdomain.CellSets[i].Cells[j]->phi[4*index+3]- phi_average[3],2);        
       }
     }
   }

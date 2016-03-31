@@ -10,7 +10,12 @@ CellSet::CellSet()
 { }
 
 CellSet::~CellSet()
-{ }
+{ 
+  for(int i=0; i<Cells.size(); i++){
+    if( Cells[i] != NULL)
+      delete Cells[i];
+  } 
+}
 
 void CellSet::BuildCellSet(int CS_ID, Problem* problem)
 {
@@ -30,11 +35,19 @@ void CellSet::BuildCellSet(int CS_ID, Problem* problem)
 
   cells_per_cellset = cells_x*cells_y*cells_z;
   
-  Cells.resize(cells_per_cellset);
-  for(int i=0; i<cells_per_cellset; i++){
-    Cells[i].BuildCell(i, CS_ID, problem);
+  if(!problem->spider){
+    for(int i=0; i<cells_per_cellset; i++){
+      Cells.push_back(new RectangularCell());
+      Cells[i]->BuildCell(i, CS_ID, problem);
+    }
   }
-
+  else{
+    for(int i=0; i<cells_per_cellset; i++){
+      Cells.push_back(new SpiderCell());
+      Cells[i]->BuildCell(i, CS_ID, problem);
+    }
+  }
+  
   // Set global boundary flags
   globalboundary.resize(6);
   BoundaryFlux.resize(6);

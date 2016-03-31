@@ -35,8 +35,8 @@ struct Neighbor{
 class Cell
 {
 public:
-	Cell();
-	~Cell();
+	Cell(){ };
+	~Cell(){ } ;
 
 public:
 	// This is the global cell ID
@@ -70,37 +70,41 @@ public:
 
 	// boundary the cell is on (0 if cell is interior) for each face
 	std::vector<int> localboundary;
+  std::vector<int> localijk;
+  
+  
+  
 
 	// This function builds the cell
-	void BuildCell(int, int, Problem*);
+	virtual void BuildCell(int, int, Problem*) = 0;
 
 	// This function determines which cellset boundary
 	// (if any) the cell is on
-	void SetLocalBoundary();
+	virtual void SetLocalBoundary() = 0;
 
 	// This function computes the global cell id
 	// given the local cell id and the cellset id
-	void ComputeCellID(int, int, Problem*);
+	virtual void ComputeCellID(int, int, Problem*) = 0;
 
 	// Given the global cell id and
 	// the number of cells in the x, y, and z
 	// this function computes the global ijk indices of the cell
-	void GetCellijk(int, int, int, int, std::vector<int>&);
+	virtual void GetCellijk(int, int, int, int, std::vector<int>&) = 0;
 
 	// Compute the face normals and face centers for the cell
-	void GetFaceNormals();
-	void GetFaceCenters();
-  void GetVertices(int);
+	virtual void GetFaceNormals() = 0;
+	virtual void GetFaceCenters() = 0;
+  virtual void GetVertices(int) = 0;
 
 	// This function computes the cell's 6) neighbor cells
 	// and the direction those neighbors are upstream
-	void GetNeighbors(int);
+	virtual void GetNeighbors(int) = 0;
   
   // This function returns in the incoming and outgoing faces, given a direction
-  void GetCellInOut(std::vector<double>, std::vector<int>& , std::vector<std::vector<int> >&);
+  virtual void GetCellInOut(std::vector<double>, std::vector<int>& , std::vector<std::vector<int> >&) = 0;
 
 	// This function computes the Mass, Surface, and Gradient matrix for the cell
-	void ComputeDFEMMatrices();
+	virtual void ComputeDFEMMatrices() = 0;
 
 	// Get functions for required geometry data
 	double GetSigmaTot(){ return sigma_t; };
@@ -109,9 +113,7 @@ public:
 	double GetDeltaY(){ return delta_y; };
 	double GetDeltaZ(){ return delta_z; };
 
-	std::vector<int> localijk;
-
-private:
+protected:
 	int cells_per_cellset;
 	
 	int cells_x, cells_y, cells_z;

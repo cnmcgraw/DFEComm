@@ -24,7 +24,12 @@ public:
 	int z_planes;
 
 	// The number of cells per pin cell will be (2*refinement)^2
+  // Refinement is also the number of rings (and the size of sp_azim)
+  // sp_azim is used for spiderweb grids. It will be the number of azimuthal cells per ring
+  // spider is the bool that specifies if we're running a spiderweb grid
 	int refinement;
+  std::vector<int> sp_azim;
+  bool spider;
 
 	// Grid type can be structured or unstructured
 	// sp_disc is the spatial discretization. 

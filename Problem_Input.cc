@@ -15,8 +15,11 @@ Problem_Input::Problem_Input()
   partition_function.resize(3, 1);
   overload.resize(3, 1);
   num_cellsets.resize(3, 1);
+  problem_size = 0;
+  sp_disc = 1;
   num_sweeps = 5;
   partition_type = 0;
+  sched_type = 1;
   MPI_Comm_size(MPI_COMM_WORLD, &num_SML);
   bcs = 2;
 
@@ -35,18 +38,6 @@ bool Problem_Input::CheckComment(std::vector<std::string> inputline) {
 void Problem_Input::ProcessInput(std::ifstream& input, std::ofstream& fout)
 {
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-
-  //// Defaults
-  //partition_function.resize(3, 1);
-  //overload.resize(3, 1);
-  //num_cellsets.resize(3, 1);
-  //num_sweeps = 5;
-
-  // Problem size indicates if the user has specified
-  // tiny, small, medium, or large problem (1,2,3, or 4)
-  // If they don't specify it, the problem parameters
-  // need to be user input
-  problem_size = 0;
 
   do {
     std::string line;
@@ -83,10 +74,28 @@ void Problem_Input::ProcessInput(std::ifstream& input, std::ofstream& fout)
               z_planes = atoi(inpL[2].c_str());
             if (inpL[0] == "refinement")
               refinement = atoi(inpL[2].c_str());
+            if (inpL[0] == "sp_azim"){
+              // If sp_azim is specified, we're doing spiderweb grids
+              spider = true;
+              // Check if refinement has been defined yet
+              if(refinement == 0){
+                if (rank == 0){ std::cout << "Refinement must be defined before sp_azim" << std::endl;}
+                MPI_Abort(MPI_COMM_WORLD,1);
+              }
+              // Check that enough sp_azim have been specified
+              if( inpL.size() < (refinement + 2) ){
+                if (rank == 0){ std::cout << "Not enough sp_azim specified" << std::endl;}
+                MPI_Abort(MPI_COMM_WORLD,1);
+              }
+              sp_azim.resize(refinement,0);
+              for(int i = 0; i < refinement; i++){
+                sp_azim[i] = atoi(inpL[2+i].c_str());
+              }
+            }
+               
             if (inpL[0] == "bc")
               bcs = atoi(inpL[2].c_str());
 
-            sp_disc = 1;
             if (inpL[0] == "spatial_discretization")
               sp_disc = atoi(inpL[2].c_str());
 
@@ -110,7 +119,7 @@ void Problem_Input::ProcessInput(std::ifstream& input, std::ofstream& fout)
               partition_bool = true;
               GetPartitionParameters();
             }
-            sched_type = 1;
+            
             if (inpL[0] == "sched_type")
               sched_type = atoi(inpL[2].c_str());
             if (inpL[0] == "num_sweeps")
@@ -357,6 +366,22 @@ void Problem_Input::CheckProblemInput()
   if(!(z_planes % num_cellsets[2] == 0)){
     if (rank == 0){ std::cout << "Invalid Partition in z" << std::endl; }
     MPI_Abort(MPI_COMM_WORLD,1);
+  }
+  
+  // Check to make sure we either stay the same or multiply by a factor of 2 
+  // for each ring 
+  if(spider){
+    if(sp_azim[0] % 4 != 0){
+      if (rank == 0){ std::cout << "Inner most azimuthal discretization must be a factor of 4" << std::endl; }
+      MPI_Abort(MPI_COMM_WORLD,1);
+    }
+    for(int i = 0; i < refinement - 1; i++){
+      double factor = double(sp_azim[i+1]) / double(sp_azim[i]);
+      if(!(factor == 1 || fmod(factor, 2.) == 0)){
+        if (rank == 0){ std::cout << "Azimuthal discretization must stay the same or multiply by a factor of 2 as we move outward" << std::endl; }
+        MPI_Abort(MPI_COMM_WORLD,1);
+      }
+    }
   }
 
   // Check that partitioning gives the correct number of SML
